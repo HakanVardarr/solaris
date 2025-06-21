@@ -1,0 +1,3 @@
+{
+  "clangd.compileCommands": "build/compile_commands.json"
+}
