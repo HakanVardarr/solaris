@@ -1,0 +1,28 @@
+CompileFlags:
+  Add: [
+    -std=c++23,
+    -isystem,
+    C:/Users/Hakan/Programming/CMake/include,
+    -isystem,
+    C:/VulkanSDK/1.4.313.2/Include,
+    -Iinclude,
+  ]
+
+Diagnostics:
+  ClangTidy:
+    Add: [
+      modernize-*,
+      performance-*,
+      readability-*,
+      bugprone-*,
+      clang-analyzer-*,
+    ]
+  Suppress: [
+    cppcoreguidelines-avoid-magic-numbers,
+    cppcoreguidelines-pro-type-reinterpret-cast,
+  ]
+
+InlayHints:
+  Enabled: true
+  ParameterNames: true
+  DeducedTypes: true

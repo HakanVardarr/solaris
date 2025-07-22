@@ -1,25 +1,28 @@
-cmake_minimum_required(VERSION 3.29)
-project(solaris)
+cmake_minimum_required(VERSION 3.10)
+project(solaris VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Vulkan REQUIRED)
-find_package(GLFW3 REQUIRED)
+find_package(glfw3 REQUIRED)
 find_package(spdlog REQUIRED)
 
-
-include_directories(
-    ${PROJECT_SOURCE_DIR}/include   
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
+    src/*.cpp
+    main.cpp
 )
 
-set(SOURCES
-    ${PROJECT_SOURCE_DIR}/src/core/DebugMessager.cpp
-    ${PROJECT_SOURCE_DIR}/src/core/InstanceManager.cpp
+add_executable(solaris ${SOURCES})
+
+target_include_directories(solaris
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
 )
 
-set(MAIN
-    ${PROJECT_SOURCE_DIR}/src/main.cpp
+target_link_libraries(solaris
+    PRIVATE
+        glfw
+        spdlog::spdlog
+        Vulkan::Vulkan
 )
-
-add_executable(${PROJECT_NAME} ${MAIN} ${SOURCES})
-target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan glfw spdlog::spdlog)
