@@ -1,4 +1,9 @@
-#include "../include/Application.hpp"
+#include "Application.hpp"
+
+#include <spdlog/spdlog.h>
+
+#include <expected>
+#include <format>
 
 auto Application::Run() -> EXPECT_VOID(ApplicationError) {
     RETURN_ERROR(initWindow());
@@ -21,7 +26,7 @@ auto Application::initWindow() -> EXPECT_VOID(ApplicationError) {
     const uint32_t HEIGHT = 600;
 
     if (glfwInit() == GLFW_FALSE) {
-        return std::unexpected(ApplicationError::GLFWInitialization);
+        return std::unexpected(ApplicationError{.errorCode = ApplicationError::ErrorCode::GLFWInitialization});
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -29,13 +34,18 @@ auto Application::initWindow() -> EXPECT_VOID(ApplicationError) {
 
     pWindow = glfwCreateWindow(WIDTH, HEIGHT, "solaris", nullptr, nullptr);
     if (pWindow == nullptr) {
-        return std::unexpected(ApplicationError::WindowCreation);
+        return std::unexpected(ApplicationError{.errorCode = ApplicationError::ErrorCode::InstanceManagerError});
     }
 
     return {};
 }
 
 auto Application::initVulkan() -> EXPECT_VOID(ApplicationError) {
+    if (auto result = mInstanceManager.CreateInstance(); !result) {
+        return std::unexpected(ApplicationError{.errorCode = ApplicationError::ErrorCode::InstanceManagerError,
+                                                .errorMessage = std::format("{}", result.error())});
+    }
+
     return {};
 }
 auto Application::mainLoop() -> EXPECT_VOID(ApplicationError) {

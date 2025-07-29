@@ -1,13 +1,17 @@
-#include "../include/Application.hpp"
+#include "Application.hpp"
 
 #include <expected>
 #include <format>
-#include <print>
+
+#include <spdlog/common.h>
+#include <spdlog/spdlog.h>
 
 auto main(int argc, char** argv) -> int {
+    spdlog::set_level(spdlog::level::debug);
+
     Application app;
     if (auto result = app.Run(); !result) {
-        std::println("ERROR: {}", result.error());
+        spdlog::error("{}", std::format("{}", result.error()));
         return EXIT_FAILURE;
     }
 

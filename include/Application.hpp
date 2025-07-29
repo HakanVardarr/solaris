@@ -1,34 +1,39 @@
 #pragma once
 
+#include "../include/Macros.hpp"
+#include "core/InstanceManager.hpp"
+
 #include <vulkan/vulkan.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <expected>
 #include <format>
 #include <string_view>
 
-#define CONCAT(x, y) x##y
-#define EXPECT_VOID(_T) std::expected<void, _T>
-#define RETURN_ERROR(_FN)                                                   \
-    if (auto CONCAT(_result_, __LINE__) = _FN; !CONCAT(_result_, __LINE__)) \
-        return std::unexpected(CONCAT(_result_, __LINE__).error());
+struct ApplicationError {
+    enum class ErrorCode : uint8_t {
+        GLFWInitialization,
+        WindowCreation,
+        InstanceManagerError,
+    };
 
-enum class ApplicationError : uint8_t {
-    GLFWInitialization,
-    WindowCreation,
+    ErrorCode errorCode;
+    std::string errorMessage{};
 };
 
 template <>
 struct std::formatter<ApplicationError> : std::formatter<std::string_view> {
     auto format(ApplicationError err, format_context& ctx) const {
         std::string_view msg;
-        switch (err) {
-            case ApplicationError::GLFWInitialization:
+        switch (err.errorCode) {
+            case ApplicationError::ErrorCode::GLFWInitialization:
                 msg = "Failed to initialize GLFW!";
                 break;
-            case ApplicationError::WindowCreation:
+            case ApplicationError::ErrorCode::WindowCreation:
                 msg = "Failed to create window.";
+                break;
+            case ApplicationError::ErrorCode::InstanceManagerError:
+                msg = err.errorMessage;
                 break;
             default:
                 msg = "Unknown error.";
@@ -49,4 +54,5 @@ class Application {
     auto mainLoop() -> EXPECT_VOID(ApplicationError);
 
     GLFWwindow* pWindow = nullptr;
+    InstanceManager mInstanceManager;
 };

@@ -1,15 +1,9 @@
 BasedOnStyle: Chromium
-
-# Özelleştirmeler:
-IndentWidth: 4               # Chromium normalde 2'dir, burada 4'e çıkardık
+IndentWidth: 4
 TabWidth: 4
-UseTab: Never                # Dilersen 'ForIndentation' yapabilirsin
-
-# İsteğe bağlı ek düzenlemeler
-ColumnLimit: 120            # Satır uzunluğu limiti (varsayılan: 80)
-BreakBeforeBraces: Attach   # Açılış süslü parantezi aynı satırda tutar
-AllowShortFunctionsOnASingleLine: Inline  # Kısa fonksiyonları tek satırda bırak
-
-# Header dosyaları için
+UseTab: Never
+ColumnLimit: 120 
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Inline
 SortIncludes: true
 IncludeBlocks: Preserve
