@@ -6,43 +6,52 @@
 
 #include <cstdint>
 
-struct InstanceManagerError {
+class InstanceManagerError {
+   public:
     enum class ErrorCode : uint8_t {
         FailedToCreateInstance,
         EnumerateExtensions,
         RequiredExtensionDoesNotExists,
     };
 
-    ErrorCode errorCode;
-    std::string errorMessage{};
-};
+    InstanceManagerError(ErrorCode errorCode, std::string errorMessage)
+        : mErrorCode(errorCode), mErrorMessage(errorMessage) {}
 
-template <>
-struct std::formatter<InstanceManagerError> : std::formatter<std::string_view> {
-    auto format(InstanceManagerError err, format_context& ctx) const {
-        std::string_view msg;
-        switch (err.errorCode) {
-            case InstanceManagerError::ErrorCode::FailedToCreateInstance:
+    [[nodiscard]] auto ToString() const -> std::string {
+        std::string msg;
+        switch (mErrorCode) {
+            case ErrorCode::FailedToCreateInstance:
                 msg = "Failed to create Vulkan instance!";
                 break;
-            case InstanceManagerError::ErrorCode::EnumerateExtensions:
+            case ErrorCode::EnumerateExtensions:
                 msg = "Encountered error while enumerating extensions.";
                 break;
-            case InstanceManagerError::ErrorCode::RequiredExtensionDoesNotExists:
-                msg = "Required extension does not exists";
+            case ErrorCode::RequiredExtensionDoesNotExists:
+                msg = "Required extension does not exist.";
                 break;
             default:
                 msg = "Unknown error.";
                 break;
         }
-        std::string full = std::format("{} ({})", msg, err.errorMessage);
-        return std::formatter<std::string_view>::format(full, ctx);
+
+        if (!mErrorMessage.empty()) {
+            msg += " (" + mErrorMessage + ")";
+        }
+
+        return msg;
     }
+
+    [[nodiscard]] auto errorCode() const -> ErrorCode { return mErrorCode; }
+    [[nodiscard]] auto errorMessage() const -> const std::string& { return mErrorMessage; }
+
+   private:
+    ErrorCode mErrorCode;
+    std::string mErrorMessage{};
 };
 
 class InstanceManager {
    public:
-    InstanceManager() {};
+    InstanceManager(){};
     ~InstanceManager() { mInstance.destroy(); };
 
     auto CreateInstance() -> EXPECT_VOID(InstanceManagerError);

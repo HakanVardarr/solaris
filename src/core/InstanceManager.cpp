@@ -47,17 +47,15 @@ auto InstanceManager::CreateInstance() -> EXPECT_VOID(InstanceManagerError) {
     uint32_t extensionCount = 0;
     if (auto result = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
         result != vk::Result::eSuccess) {
-        return std::unexpected(InstanceManagerError{.errorCode = InstanceManagerError::ErrorCode::EnumerateExtensions,
-                                                    .errorMessage = vk::to_string(result)});
+        return std::unexpected(
+            InstanceManagerError(InstanceManagerError::ErrorCode::EnumerateExtensions, vk::to_string(result)));
     }
 
     std::vector<vk::ExtensionProperties> extensions(extensionCount);
     if (auto result = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
         result != vk::Result::eSuccess) {
-        return std::unexpected(InstanceManagerError{
-            .errorCode = InstanceManagerError::ErrorCode::EnumerateExtensions,
-            .errorMessage = vk::to_string(result),
-        });
+        return std::unexpected(
+            InstanceManagerError(InstanceManagerError::ErrorCode::EnumerateExtensions, vk::to_string(result)));
     }
 
     spdlog::debug("Available Extensions:");
@@ -70,10 +68,9 @@ auto InstanceManager::CreateInstance() -> EXPECT_VOID(InstanceManagerError) {
             extensions, [&](const auto& ext) { return std::string_view(ext.extensionName.data()) == required; });
 
         if (!found) {
-            return std::unexpected(InstanceManagerError{
-                .errorCode = InstanceManagerError::ErrorCode::RequiredExtensionDoesNotExists,
-                .errorMessage = std::format("Missing required Vulkan extension: {}", required),
-            });
+            return std::unexpected(
+                InstanceManagerError(InstanceManagerError::ErrorCode::RequiredExtensionDoesNotExists,
+                                     std::format("Missing required Vulkan extension: {}", required)));
         }
     }
 
@@ -82,10 +79,8 @@ auto InstanceManager::CreateInstance() -> EXPECT_VOID(InstanceManagerError) {
     createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
     if (auto result = vk::createInstance(&createInfo, nullptr, &mInstance); result != vk::Result::eSuccess) {
-        return std::unexpected(InstanceManagerError{
-            .errorCode = InstanceManagerError::ErrorCode::FailedToCreateInstance,
-            .errorMessage = vk::to_string(result),
-        });
+        return std::unexpected(
+            InstanceManagerError(InstanceManagerError::ErrorCode::FailedToCreateInstance, vk::to_string(result)));
     }
 
     return {};

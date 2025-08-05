@@ -1,46 +1,54 @@
 #pragma once
 
-#include "../include/Macros.hpp"
+#include "Macros.hpp"
 #include "core/InstanceManager.hpp"
 
 #include <vulkan/vulkan.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <format>
-#include <string_view>
-
-struct ApplicationError {
+class ApplicationError {
+   public:
     enum class ErrorCode : uint8_t {
         GLFWInitialization,
         WindowCreation,
         InstanceManagerError,
     };
 
-    ErrorCode errorCode;
-    std::string errorMessage{};
-};
+    ApplicationError(ErrorCode errorCode) : mErrorCode(errorCode) {}
+    ApplicationError(ErrorCode errorCode, const std::string& errorMessage)
+        : mErrorCode(errorCode), mErrorMessage(errorMessage) {}
 
-template <>
-struct std::formatter<ApplicationError> : std::formatter<std::string_view> {
-    auto format(ApplicationError err, format_context& ctx) const {
-        std::string_view msg;
-        switch (err.errorCode) {
-            case ApplicationError::ErrorCode::GLFWInitialization:
+    [[nodiscard]] auto ToString() const -> std::string {
+        std::string msg;
+        switch (mErrorCode) {
+            case ErrorCode::GLFWInitialization:
                 msg = "Failed to initialize GLFW!";
                 break;
-            case ApplicationError::ErrorCode::WindowCreation:
+            case ErrorCode::WindowCreation:
                 msg = "Failed to create window.";
                 break;
-            case ApplicationError::ErrorCode::InstanceManagerError:
-                msg = err.errorMessage;
+            case ErrorCode::InstanceManagerError:
+                msg = mErrorMessage;
                 break;
             default:
                 msg = "Unknown error.";
                 break;
         }
-        return std::formatter<std::string_view>::format(msg, ctx);
+
+        if (mErrorCode != ErrorCode::InstanceManagerError && !mErrorMessage.empty()) {
+            msg += " (" + mErrorMessage + ")";
+        }
+
+        return msg;
     }
+
+    [[nodiscard]] auto errorCode() const -> ErrorCode { return mErrorCode; }
+    [[nodiscard]] auto errorMessage() const -> const std::string& { return mErrorMessage; }
+
+   private:
+    ErrorCode mErrorCode;
+    std::string mErrorMessage;
 };
 
 class Application {

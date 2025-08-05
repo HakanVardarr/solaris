@@ -26,7 +26,7 @@ auto Application::initWindow() -> EXPECT_VOID(ApplicationError) {
     const uint32_t HEIGHT = 600;
 
     if (glfwInit() == GLFW_FALSE) {
-        return std::unexpected(ApplicationError{.errorCode = ApplicationError::ErrorCode::GLFWInitialization});
+        return std::unexpected(ApplicationError(ApplicationError::ErrorCode::GLFWInitialization));
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -34,7 +34,7 @@ auto Application::initWindow() -> EXPECT_VOID(ApplicationError) {
 
     pWindow = glfwCreateWindow(WIDTH, HEIGHT, "solaris", nullptr, nullptr);
     if (pWindow == nullptr) {
-        return std::unexpected(ApplicationError{.errorCode = ApplicationError::ErrorCode::InstanceManagerError});
+        return std::unexpected(ApplicationError(ApplicationError::ErrorCode::InstanceManagerError));
     }
 
     return {};
@@ -42,8 +42,8 @@ auto Application::initWindow() -> EXPECT_VOID(ApplicationError) {
 
 auto Application::initVulkan() -> EXPECT_VOID(ApplicationError) {
     if (auto result = mInstanceManager.CreateInstance(); !result) {
-        return std::unexpected(ApplicationError{.errorCode = ApplicationError::ErrorCode::InstanceManagerError,
-                                                .errorMessage = std::format("{}", result.error())});
+        return std::unexpected(ApplicationError(ApplicationError::ErrorCode::InstanceManagerError,
+                                                std::format("{}", result.error().ToString())));
     }
 
     return {};
