@@ -1,54 +1,48 @@
 #pragma once
-
 #include "Macros.hpp"
 #include "core/InstanceManager.hpp"
 
+#include <spdlog/fmt/bundled/base.h>
+#include <spdlog/fmt/bundled/format.h>
 #include <vulkan/vulkan.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-class ApplicationError {
-   public:
+struct ApplicationError {
     enum class ErrorCode : uint8_t {
-        GLFWInitialization,
-        WindowCreation,
-        InstanceManagerError,
+        eGLFWInitialization,
+        eWindowCreation,
+        eInstanceManagerError,
     };
 
-    ApplicationError(ErrorCode errorCode) : mErrorCode(errorCode) {}
-    ApplicationError(ErrorCode errorCode, const std::string& errorMessage)
-        : mErrorCode(errorCode), mErrorMessage(errorMessage) {}
+    ErrorCode mErrorCode;
+    std::string mErrorMessage{};
+};
 
-    [[nodiscard]] auto ToString() const -> std::string {
-        std::string msg;
-        switch (mErrorCode) {
-            case ErrorCode::GLFWInitialization:
-                msg = "Failed to initialize GLFW!";
+template <>
+struct fmt::formatter<ApplicationError> {
+    constexpr auto parse(fmt::format_parse_context& ctx) -> const char* { return ctx.end(); }
+
+    template <typename FormatContext>
+    auto format(const ApplicationError& err, FormatContext& ctx) const {
+        std::string_view msg;
+        switch (err.mErrorCode) {
+            case ApplicationError::ErrorCode::eGLFWInitialization:
+                msg = "Failed to initalize GLFW!";
                 break;
-            case ErrorCode::WindowCreation:
+            case ApplicationError::ErrorCode::eWindowCreation:
                 msg = "Failed to create window.";
                 break;
-            case ErrorCode::InstanceManagerError:
-                msg = mErrorMessage;
+            case ApplicationError::ErrorCode::eInstanceManagerError:
+                msg = err.mErrorMessage;
                 break;
             default:
                 msg = "Unknown error.";
                 break;
         }
 
-        if (mErrorCode != ErrorCode::InstanceManagerError && !mErrorMessage.empty()) {
-            msg += " (" + mErrorMessage + ")";
-        }
-
-        return msg;
+        return fmt::format_to(ctx.out(), "{}", msg);
     }
-
-    [[nodiscard]] auto errorCode() const -> ErrorCode { return mErrorCode; }
-    [[nodiscard]] auto errorMessage() const -> const std::string& { return mErrorMessage; }
-
-   private:
-    ErrorCode mErrorCode;
-    std::string mErrorMessage;
 };
 
 class Application {

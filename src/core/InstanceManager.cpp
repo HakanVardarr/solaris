@@ -47,15 +47,15 @@ auto InstanceManager::CreateInstance() -> EXPECT_VOID(InstanceManagerError) {
     uint32_t extensionCount = 0;
     if (auto result = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
         result != vk::Result::eSuccess) {
-        return std::unexpected(
-            InstanceManagerError(InstanceManagerError::ErrorCode::EnumerateExtensions, vk::to_string(result)));
+        return std::unexpected(InstanceManagerError{.mErrorCode = InstanceManagerError::ErrorCode::eEnumerateExtensions,
+                                                    .mErrorMessage = vk::to_string(result)});
     }
 
     std::vector<vk::ExtensionProperties> extensions(extensionCount);
     if (auto result = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
         result != vk::Result::eSuccess) {
-        return std::unexpected(
-            InstanceManagerError(InstanceManagerError::ErrorCode::EnumerateExtensions, vk::to_string(result)));
+        return std::unexpected(InstanceManagerError{.mErrorCode = InstanceManagerError::ErrorCode::eEnumerateExtensions,
+                                                    .mErrorMessage = vk::to_string(result)});
     }
 
     spdlog::debug("Available Extensions:");
@@ -69,8 +69,8 @@ auto InstanceManager::CreateInstance() -> EXPECT_VOID(InstanceManagerError) {
 
         if (!found) {
             return std::unexpected(
-                InstanceManagerError(InstanceManagerError::ErrorCode::RequiredExtensionDoesNotExists,
-                                     std::format("Missing required Vulkan extension: {}", required)));
+                InstanceManagerError{.mErrorCode = InstanceManagerError::ErrorCode::eRequiredExtensionDoesNotExists,
+                                     .mErrorMessage = std::format("Missing required Vulkan extension: {}", required)});
         }
     }
 
@@ -80,7 +80,8 @@ auto InstanceManager::CreateInstance() -> EXPECT_VOID(InstanceManagerError) {
 
     if (auto result = vk::createInstance(&createInfo, nullptr, &mInstance); result != vk::Result::eSuccess) {
         return std::unexpected(
-            InstanceManagerError(InstanceManagerError::ErrorCode::FailedToCreateInstance, vk::to_string(result)));
+            InstanceManagerError{.mErrorCode = InstanceManagerError::ErrorCode::eFailedToCreateInstance,
+                                 .mErrorMessage = vk::to_string(result)});
     }
 
     return {};

@@ -2,51 +2,48 @@
 #include "Macros.hpp"
 
 #include <GLFW/glfw3.h>
+#include <spdlog/fmt/bundled/format.h>
 #include <vulkan/vulkan.hpp>
 
 #include <cstdint>
 
-class InstanceManagerError {
-   public:
+struct InstanceManagerError {
     enum class ErrorCode : uint8_t {
-        FailedToCreateInstance,
-        EnumerateExtensions,
-        RequiredExtensionDoesNotExists,
+        eFailedToCreateInstance,
+        eEnumerateExtensions,
+        eRequiredExtensionDoesNotExists,
+
     };
 
-    InstanceManagerError(ErrorCode errorCode, std::string errorMessage)
-        : mErrorCode(errorCode), mErrorMessage(errorMessage) {}
+    ErrorCode mErrorCode;
+    std::string mErrorMessage{};
+};
 
-    [[nodiscard]] auto ToString() const -> std::string {
-        std::string msg;
-        switch (mErrorCode) {
-            case ErrorCode::FailedToCreateInstance:
+template <>
+struct fmt::formatter<InstanceManagerError> {
+    constexpr auto parse(fmt::format_parse_context& ctx) -> const char* { return ctx.end(); }
+
+    template <typename FormatContext>
+    auto format(const InstanceManagerError& err, FormatContext& ctx) const {
+        std::string_view msg;
+        switch (err.mErrorCode) {
+            case InstanceManagerError::ErrorCode::eFailedToCreateInstance:
                 msg = "Failed to create Vulkan instance!";
                 break;
-            case ErrorCode::EnumerateExtensions:
+            case InstanceManagerError::ErrorCode::eEnumerateExtensions:
                 msg = "Encountered error while enumerating extensions.";
                 break;
-            case ErrorCode::RequiredExtensionDoesNotExists:
-                msg = "Required extension does not exist.";
+            case InstanceManagerError::ErrorCode::eRequiredExtensionDoesNotExists:
+                msg = "Required extension does not exists";
                 break;
             default:
                 msg = "Unknown error.";
                 break;
         }
 
-        if (!mErrorMessage.empty()) {
-            msg += " (" + mErrorMessage + ")";
-        }
-
-        return msg;
+        std::string full = std::format("{} ({})", msg, err.mErrorMessage);
+        return fmt::format_to(ctx.out(), "{}", full);
     }
-
-    [[nodiscard]] auto errorCode() const -> ErrorCode { return mErrorCode; }
-    [[nodiscard]] auto errorMessage() const -> const std::string& { return mErrorMessage; }
-
-   private:
-    ErrorCode mErrorCode;
-    std::string mErrorMessage{};
 };
 
 class InstanceManager {
