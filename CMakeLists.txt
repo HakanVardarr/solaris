@@ -26,3 +26,7 @@ target_link_libraries(solaris
         spdlog::spdlog
         Vulkan::Vulkan
 )
+
+target_compile_definitions(solaris PRIVATE
+    $<$<CONFIG:Release>:NDEBUG>
+)

@@ -1,5 +1,6 @@
 #pragma once
 #include "Macros.hpp"
+
 #include "core/InstanceManager.hpp"
 
 #include <spdlog/fmt/bundled/base.h>

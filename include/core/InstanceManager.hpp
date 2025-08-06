@@ -7,11 +7,21 @@
 
 #include <cstdint>
 
+#ifdef NDEBUG
+constexpr bool enableValidationLayers = false;
+#else
+constexpr bool enableValidationLayers = true;
+#endif
+
+const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+
 struct InstanceManagerError {
     enum class ErrorCode : uint8_t {
         eFailedToCreateInstance,
         eEnumerateExtensions,
+        eInstanceLayerProperties,
         eRequiredExtensionDoesNotExists,
+        eValidationLayersNotAvailable,
 
     };
 
@@ -33,8 +43,14 @@ struct fmt::formatter<InstanceManagerError> {
             case InstanceManagerError::ErrorCode::eEnumerateExtensions:
                 msg = "Encountered error while enumerating extensions.";
                 break;
+            case InstanceManagerError::ErrorCode::eInstanceLayerProperties:
+                msg = "Encountered error while enumerating instance layer properties.";
+                break;
             case InstanceManagerError::ErrorCode::eRequiredExtensionDoesNotExists:
-                msg = "Required extension does not exists";
+                msg = "Required extension does not exists.";
+                break;
+            case InstanceManagerError::ErrorCode::eValidationLayersNotAvailable:
+                msg = "Validation layers requested, but not available.";
                 break;
             default:
                 msg = "Unknown error.";
@@ -52,6 +68,7 @@ class InstanceManager {
     ~InstanceManager() { mInstance.destroy(); };
 
     auto CreateInstance() -> EXPECT_VOID(InstanceManagerError);
+    auto GetInstance() -> vk::Instance const { return mInstance; }
 
    private:
     vk::Instance mInstance;
