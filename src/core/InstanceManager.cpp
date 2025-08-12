@@ -1,6 +1,9 @@
 #include "core/InstanceManager.hpp"
+#include "errors/InsanceManagerError.hpp"
+#include "fmt/formatters.hpp"  // IWYU pragma: keep
 
 #include <GLFW/glfw3.h>
+#include <spdlog/fmt/bundled/format.h>
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan.hpp>
@@ -13,6 +16,17 @@
 #include <cstdint>
 #include <expected>
 #include <vector>
+
+#ifdef NDEBUG
+constexpr bool enableValidationLayers = false;
+#else
+constexpr bool enableValidationLayers = true;
+#endif
+const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+
+namespace solaris::core {
+
+using solaris::errors::InstanceManagerError;
 
 /*
     Checks validation layer support
@@ -182,3 +196,5 @@ auto InstanceManager::CreateInstance() -> EXPECT_VOID(InstanceManagerError) {
 
     return {};
 }
+
+}  // namespace solaris::core

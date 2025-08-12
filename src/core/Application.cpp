@@ -1,10 +1,16 @@
-#include "Application.hpp"
+#include "core/Application.hpp"
 #include "Macros.hpp"
+#include "errors/ApplicationError.hpp"
+#include "fmt/formatters.hpp"  // IWYU pragma: keep
 
 #include <spdlog/fmt/bundled/format.h>
 #include <spdlog/spdlog.h>
 
 #include <expected>
+
+namespace solaris::core {
+
+using solaris::errors::ApplicationError;
 
 auto Application::Run() -> EXPECT_VOID(ApplicationError) {
     RETURN_ERROR(initWindow());
@@ -56,3 +62,5 @@ auto Application::mainLoop() -> EXPECT_VOID(ApplicationError) {
 
     return {};
 }
+
+}  // namespace solaris::core

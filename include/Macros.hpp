@@ -1,7 +1,7 @@
 #pragma once
 
 #include <expected>
-#include <format>
+#include <format>  // IWYU pragma: keep
 
 #define CONCAT(x, y) x##y
 #define EXPECT_VOID(_T) std::expected<void, _T>
