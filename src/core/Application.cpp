@@ -1,7 +1,7 @@
-#include "core/Application.hpp"
-#include "Macros.hpp"
-#include "errors/ApplicationError.hpp"
+#include "core/application.hpp"
+#include "errors/application_error.hpp"
 #include "fmt/formatters.hpp"  // IWYU pragma: keep
+#include "macros.hpp"
 
 #include <spdlog/fmt/bundled/format.h>
 #include <spdlog/spdlog.h>
@@ -48,10 +48,18 @@ auto Application::initWindow() -> EXPECT_VOID(ApplicationError) {
 }
 
 auto Application::initVulkan() -> EXPECT_VOID(ApplicationError) {
-    if (auto result = mInstanceManager.CreateInstance(); !result) {
-        return std::unexpected(ApplicationError{.mErrorCode = ApplicationError::ErrorCode::eInstanceManagerError,
-                                                .mErrorMessage = fmt::to_string(result.error())});
+    if (auto result = mContext.init(); !result) {
+        return std::unexpected(ApplicationError{.mErrorCode = ApplicationError::ErrorCode::eVulkanContext,
+                                                .mErrorMessage = fmt::format("{}", result.error())});
     }
+
+    vk::DebugUtilsMessengerCallbackDataEXT callbackData{};
+    callbackData.pMessageIdName = "CustomMessage";
+    callbackData.messageIdNumber = 0;
+    callbackData.pMessage = "Hello world!";
+
+    mContext.mInstance.submitDebugUtilsMessageEXT(vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
+                                                  vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral, callbackData);
 
     return {};
 }

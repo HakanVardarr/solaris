@@ -1,7 +1,7 @@
 #pragma once
-#include "Macros.hpp"
-#include "core/InstanceManager.hpp"
-#include "errors/ApplicationError.hpp"
+#include "core/vulkan_context.hpp"
+#include "errors/application_error.hpp"
+#include "macros.hpp"
 
 #include <GLFW/glfw3.h>
 
@@ -18,7 +18,8 @@ class Application {
     auto mainLoop() -> EXPECT_VOID(solaris::errors::ApplicationError);
 
     GLFWwindow* pWindow = nullptr;
-    InstanceManager mInstanceManager;
+    VulkanContext mContext;
+    // InstanceManager mInstanceManager;
 };
 
 }  // namespace solaris::core

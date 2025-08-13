@@ -1,47 +1,12 @@
 #pragma once
-#include "errors/ApplicationError.hpp"
-#include "errors/InsanceManagerError.hpp"
+#include "errors/application_error.hpp"
+#include "errors/vulkan_context.error.hpp"
 
 #include <spdlog/fmt/bundled/format.h>
-
-#include <format>
 
 namespace fmt {
 
 using namespace solaris::errors;
-
-template <>
-struct formatter<InstanceManagerError> {
-    constexpr auto parse(fmt::format_parse_context& ctx) -> const char* { return ctx.end(); }
-
-    template <typename FormatContext>
-    auto format(const InstanceManagerError& err, FormatContext& ctx) const {
-        std::string_view msg;
-        switch (err.mErrorCode) {
-            case InstanceManagerError::ErrorCode::eFailedToCreateInstance:
-                msg = "Failed to create Vulkan instance!";
-                break;
-            case InstanceManagerError::ErrorCode::eEnumerateExtensions:
-                msg = "Encountered error while enumerating extensions.";
-                break;
-            case InstanceManagerError::ErrorCode::eInstanceLayerProperties:
-                msg = "Encountered error while enumerating instance layer properties.";
-                break;
-            case InstanceManagerError::ErrorCode::eRequiredExtensionDoesNotExists:
-                msg = "Required extension does not exists.";
-                break;
-            case InstanceManagerError::ErrorCode::eValidationLayersNotAvailable:
-                msg = "Validation layers requested, but not available.";
-                break;
-            default:
-                msg = "Unknown error.";
-                break;
-        }
-
-        std::string full = std::format("{} ({})", msg, err.mErrorMessage);
-        return fmt::format_to(ctx.out(), "{}", full);
-    }
-};
 
 template <>
 struct formatter<ApplicationError> {
@@ -57,7 +22,7 @@ struct formatter<ApplicationError> {
             case ApplicationError::ErrorCode::eWindowCreation:
                 msg = "Failed to create window.";
                 break;
-            case ApplicationError::ErrorCode::eInstanceManagerError:
+            case ApplicationError::ErrorCode::eVulkanContext:
                 msg = err.mErrorMessage;
                 break;
             default:
@@ -65,6 +30,29 @@ struct formatter<ApplicationError> {
                 break;
         }
         return fmt::format_to(ctx.out(), "{}", msg);
+    }
+};
+
+template <>
+struct formatter<VulkanContextError> {
+    constexpr auto parse(format_parse_context& ctx) -> const char* { return ctx.end(); }
+
+    template <typename FormatContext>
+    auto format(const VulkanContextError& err, FormatContext& ctx) const {
+        std::string_view msg;
+
+        switch (err.mErrorCode) {
+            case VulkanContextError::ErrorCode::eEnumerateInstanceProperties:
+                return fmt::format_to(ctx.out(), "Encountered error while enumerating instance layer properties: [{}]",
+                                      err.mErrorMessage);
+            case VulkanContextError::ErrorCode::eInstanceCreate:
+                return fmt::format_to(ctx.out(), "Failed to create instance: [{}]", err.mErrorMessage);
+                break;
+            case VulkanContextError::ErrorCode::eDebugMessenger:
+                return fmt::format_to(ctx.out(), "Failed to create debug messenger: [{}]", err.mErrorMessage);
+            default:
+                return fmt::format_to(ctx.out(), "Unknown Error");
+        }
     }
 };
 

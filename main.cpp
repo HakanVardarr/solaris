@@ -1,4 +1,4 @@
-#include "core/Application.hpp"
+#include "core/application.hpp"
 #include "fmt/formatters.hpp"  // IWYU pragma: keep
 
 #include <spdlog/common.h>

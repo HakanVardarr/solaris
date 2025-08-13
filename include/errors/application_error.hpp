@@ -9,7 +9,7 @@ struct ApplicationError {
     enum class ErrorCode : uint8_t {
         eGLFWInitialization,
         eWindowCreation,
-        eInstanceManagerError,
+        eVulkanContext,
     };
 
     ErrorCode mErrorCode;
