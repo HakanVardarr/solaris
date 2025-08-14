@@ -1,6 +1,8 @@
 #pragma once
 #include "errors/application_error.hpp"
-#include "errors/vulkan_context.error.hpp"
+#include "errors/device_manager_error.hpp"
+#include "errors/surface_manager_error.hpp"
+#include "errors/vulkan_context_error.hpp"
 
 #include <spdlog/fmt/bundled/format.h>
 
@@ -50,6 +52,51 @@ struct formatter<VulkanContextError> {
                 break;
             case VulkanContextError::ErrorCode::eDebugMessenger:
                 return fmt::format_to(ctx.out(), "Failed to create debug messenger: [{}]", err.mErrorMessage);
+            case VulkanContextError::ErrorCode::eDeviceManager:
+                return fmt::format_to(ctx.out(), "{}", err.mErrorMessage);
+            case VulkanContextError::ErrorCode::eSurfaceManager:
+                return fmt::format_to(ctx.out(), "{}", err.mErrorMessage);
+            default:
+                return fmt::format_to(ctx.out(), "Unknown Error");
+        }
+    }
+};
+
+template <>
+struct formatter<DeviceManagerError> {
+    constexpr auto parse(format_parse_context& ctx) -> const char* { return ctx.end(); }
+
+    template <typename FormatContext>
+    auto format(const DeviceManagerError& err, FormatContext& ctx) const {
+        std::string_view msg;
+
+        switch (err.mErrorCode) {
+            case DeviceManagerError::ErrorCode::eFailToFindGPU:
+                return fmt::format_to(ctx.out(), "Failed to find GPUs with Vulkan support!");
+            case DeviceManagerError::ErrorCode::eFailedToEnumerate:
+                return fmt::format_to(ctx.out(), "Failed to enumerate physical devices: [{}]", err.mErrorMessage);
+            case DeviceManagerError::ErrorCode::eFailedToCreateDevice:
+                return fmt::format_to(ctx.out(), "Failed to create logical device: [{}]", err.mErrorMessage);
+            case DeviceManagerError::ErrorCode::eFailedToGetQueue:
+                return fmt::format_to(ctx.out(), "Failed to get queue from device: [{}]", err.mErrorMessage);
+            default:
+                return fmt::format_to(ctx.out(), "Unknown Error");
+        }
+    }
+};
+
+template <>
+struct formatter<SurfaceManagerError> {
+    constexpr auto parse(format_parse_context& ctx) -> const char* { return ctx.end(); }
+
+    template <typename FormatContext>
+    auto format(const SurfaceManagerError& err, FormatContext& ctx) const {
+        std::string_view msg;
+
+        switch (err.mErrorCode) {
+            case SurfaceManagerError::ErrorCode::eFailedToCreateSurface:
+                return fmt::format_to(ctx.out(), "Failed to create window surface!");
+
             default:
                 return fmt::format_to(ctx.out(), "Unknown Error");
         }

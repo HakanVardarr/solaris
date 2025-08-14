@@ -1,10 +1,15 @@
 #include "core/vulkan_context.hpp"
-#include "errors/vulkan_context.error.hpp"
+#include "core/device_manager.hpp"
+#include "core/surface_manager.hpp"
+#include "errors/vulkan_context_error.hpp"
+
 #include "fmt/formatters.hpp"  // IWYU pragma: keep
 #include "macros.hpp"
 
 #include <GLFW/glfw3.h>
+#include <__expected/unexpected.h>
 #include <spdlog/spdlog.h>
+#include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
@@ -33,15 +38,25 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(VkDebugUtilsMessageSe
 }
 
 namespace solaris::core {
+
 using solaris::errors::VulkanContextError;
 
-const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
-
-auto VulkanContext::init() -> EXPECT_VOID(VulkanContextError) {
+auto VulkanContext::init(GLFWwindow* pWindow) -> EXPECT_VOID(VulkanContextError) {
     if (auto result = createInstance(); !result) {
-        spdlog::info("{}", result.error());
-        // return std::unexpected(result.error());
+        return std::unexpected(result.error());
     }
+
+    if (auto result = SurfaceManager::Create(*this, pWindow); !result) {
+        return std::unexpected(
+            VulkanContextError(VulkanContextError::ErrorCode::eSurfaceManager, fmt::format("{}", result.error())));
+    }
+
+    if (auto result = DeviceManager::pickPhysicalDevice(*this); !result) {
+        return std::unexpected(
+            VulkanContextError(VulkanContextError::ErrorCode::eDeviceManager, fmt::format("{}", result.error())));
+    }
+
+    auto deviceProperties = mPhysicalDevice.getProperties();
 
     return {};
 }
@@ -50,6 +65,17 @@ auto VulkanContext::createInstance() -> EXPECT_VOID(VulkanContextError) {
     auto extensions = getRequiredExtensions();
 
     vk::ApplicationInfo applicationInfo{"Triangle", 1, "Solaris", 1, VK_API_VERSION_1_1};
+
+    spdlog::debug("Application Name: {}", applicationInfo.pApplicationName);
+    spdlog::debug("Application Version: {}.{}.{}", VK_VERSION_MAJOR(applicationInfo.applicationVersion),
+                  VK_VERSION_MINOR(applicationInfo.applicationVersion),
+                  VK_VERSION_PATCH(applicationInfo.applicationVersion));
+    spdlog::debug("Engine Name: {}", applicationInfo.pEngineName);
+    spdlog::debug("Engine Version: {}.{}.{}", VK_VERSION_MAJOR(applicationInfo.engineVersion),
+                  VK_VERSION_MINOR(applicationInfo.engineVersion), VK_VERSION_PATCH(applicationInfo.engineVersion));
+    spdlog::debug("API Version: {}.{}.{}", VK_VERSION_MAJOR(applicationInfo.apiVersion),
+                  VK_VERSION_MINOR(applicationInfo.apiVersion), VK_VERSION_PATCH(applicationInfo.apiVersion));
+
     vk::InstanceCreateInfo instanceCreateInfo(vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR, &applicationInfo,
                                               {}, {}, static_cast<uint32_t>(extensions.size()), extensions.data(),
                                               nullptr);

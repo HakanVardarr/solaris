@@ -5,8 +5,12 @@
 
 #include <spdlog/fmt/bundled/format.h>
 #include <spdlog/spdlog.h>
+#include <vulkan/vulkan_core.h>
 
+#include <vulkan/vk_enum_string_helper.h>
 #include <expected>
+#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
 namespace solaris::core {
 
@@ -48,18 +52,10 @@ auto Application::initWindow() -> EXPECT_VOID(ApplicationError) {
 }
 
 auto Application::initVulkan() -> EXPECT_VOID(ApplicationError) {
-    if (auto result = mContext.init(); !result) {
+    if (auto result = mContext.init(pWindow); !result) {
         return std::unexpected(ApplicationError{.mErrorCode = ApplicationError::ErrorCode::eVulkanContext,
                                                 .mErrorMessage = fmt::format("{}", result.error())});
     }
-
-    vk::DebugUtilsMessengerCallbackDataEXT callbackData{};
-    callbackData.pMessageIdName = "CustomMessage";
-    callbackData.messageIdNumber = 0;
-    callbackData.pMessage = "Hello world!";
-
-    mContext.mInstance.submitDebugUtilsMessageEXT(vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
-                                                  vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral, callbackData);
 
     return {};
 }

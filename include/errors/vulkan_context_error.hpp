@@ -10,6 +10,8 @@ struct VulkanContextError {
         eEnumerateInstanceProperties,
         eInstanceCreate,
         eDebugMessenger,
+        eDeviceManager,
+        eSurfaceManager,
     };
 
     ErrorCode mErrorCode;

@@ -9,13 +9,13 @@ namespace solaris::core {
 
 class Application {
    public:
-    auto Run() -> EXPECT_VOID(solaris::errors::ApplicationError);
+    auto Run() -> EXPECT_VOID(errors::ApplicationError);
     ~Application();
 
    private:
-    auto initWindow() -> EXPECT_VOID(solaris::errors::ApplicationError);
-    auto initVulkan() -> EXPECT_VOID(solaris::errors::ApplicationError);
-    auto mainLoop() -> EXPECT_VOID(solaris::errors::ApplicationError);
+    auto initWindow() -> EXPECT_VOID(errors::ApplicationError);
+    auto initVulkan() -> EXPECT_VOID(errors::ApplicationError);
+    auto mainLoop() -> EXPECT_VOID(errors::ApplicationError);
 
     GLFWwindow* pWindow = nullptr;
     VulkanContext mContext;
