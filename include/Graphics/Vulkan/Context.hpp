@@ -1,15 +1,11 @@
 #pragma once
-#include "errors/vulkan_context_error.hpp"
-#include "macros.hpp"
 
 #include <GLFW/glfw3.h>
 #include <spdlog/fmt/bundled/format.h>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-#include <expected>
-
-namespace solaris::core {
+namespace Solaris::Graphics::Vulkan {
 
 const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 
@@ -31,12 +27,12 @@ struct VulkanContext {
     bool validationEnabled = true;
 #endif
 
-    auto init(GLFWwindow*) -> EXPECT_VOID(errors::VulkanContextError);
+    auto init(GLFWwindow*) -> void;
 
    private:
-    auto createInstance() -> EXPECT_VOID(errors::VulkanContextError);
-    auto checkValidationLayerSupport() -> std::expected<bool, errors::VulkanContextError>;
+    auto createInstance() -> void;
+    auto checkValidationLayerSupport() -> bool;
     auto getRequiredExtensions() -> std::vector<const char*>;
 };
 
-}  // namespace solaris::core
+}  // namespace Solaris::Graphics::Vulkan

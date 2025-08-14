@@ -1,9 +1,7 @@
-#include "core/device_manager.hpp"
-#include "core/queue_family.hpp"
-#include "core/surface_manager.hpp"
-#include "core/vulkan_context.hpp"
-#include "errors/device_manager_error.hpp"
-#include "macros.hpp"
+#include "Graphics/Vulkan/DeviceManager.hpp"
+#include "Graphics/Vulkan/Context.hpp"
+#include "Graphics/Vulkan/QueueFamily.hpp"
+#include "Graphics/Vulkan/SurfaceManager.hpp"
 
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan_core.h>
@@ -14,25 +12,19 @@
 
 #include <map>
 #include <set>
+#include <stdexcept>
 
-namespace solaris::core {
+namespace Solaris::Graphics::Vulkan {
 
-using solaris::errors::DeviceManagerError;
-
-auto DeviceManager::pickPhysicalDevice(VulkanContext& ctx) -> EXPECT_VOID(DeviceManagerError) {
+auto DeviceManager::pickPhysicalDevice(VulkanContext& ctx) -> void {
     auto result = ctx.mInstance.enumeratePhysicalDevices();
-    if (!result.has_value()) {
-        return std::unexpected(
-            DeviceManagerError(DeviceManagerError::ErrorCode::eFailedToEnumerate, vk::to_string(result.error())));
-    }
+    std::vector<vk::raii::PhysicalDevice> devices = std::move(result);
 
-    std::vector<vk::raii::PhysicalDevice> devices = std::move(result.value());
     if (devices.empty()) {
-        return std::unexpected(DeviceManagerError(DeviceManagerError::ErrorCode::eFailToFindGPU));
+        throw std::runtime_error("Failed to any GPUs on device.");
     }
 
     std::multimap<int, vk::raii::PhysicalDevice> candidates;
-
     for (auto& device : devices) {
         int score = rateDeviceSuitability(device, ctx);
         candidates.emplace(score, std::move(device));
@@ -40,18 +32,16 @@ auto DeviceManager::pickPhysicalDevice(VulkanContext& ctx) -> EXPECT_VOID(Device
 
     auto best = candidates.rbegin();
     if (best->first <= 0) {
-        return std::unexpected(DeviceManagerError(DeviceManagerError::ErrorCode::eFailToFindGPU));
+        throw std::runtime_error("Failed to any GPUs on device.");
     }
 
     auto& bestDevice = best->second;
     auto deviceProperties = bestDevice.getProperties();
     spdlog::debug("Selected GPU: {}", deviceProperties.deviceName.data());
-
     ctx.mPhysicalDevice = std::move(bestDevice);
-    return {};
 }
 
-auto DeviceManager::createLogicalDevice(VulkanContext& ctx) -> EXPECT_VOID(DeviceManagerError) {
+auto DeviceManager::createLogicalDevice(VulkanContext& ctx) -> void {
     auto indices = findQueueFamilies(ctx.mPhysicalDevice, ctx);
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
     std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
@@ -75,28 +65,10 @@ auto DeviceManager::createLogicalDevice(VulkanContext& ctx) -> EXPECT_VOID(Devic
     }
 
     auto raw = ctx.mPhysicalDevice.createDevice(createInfo);
-    if (!raw.has_value()) {
-        std::unexpected(
-            DeviceManagerError(DeviceManagerError::ErrorCode::eFailedToCreateDevice, vk::to_string(raw.error())));
-    }
 
-    ctx.mDevice.swap(raw.value());
-
-    if (auto err = ctx.mDevice.getQueue(indices.graphicsFamily.value(), 0); err.has_value()) {
-        ctx.mGraphicsQueue.swap(err.value());
-    } else {
-        std::unexpected(
-            DeviceManagerError(DeviceManagerError::ErrorCode::eFailedToGetQueue, vk::to_string(err.error())));
-    }
-
-    if (auto err = ctx.mDevice.getQueue(indices.presentFamily.value(), 0); err.has_value()) {
-        ctx.mPresentQueue.swap(err.value());
-    } else {
-        std::unexpected(
-            DeviceManagerError(DeviceManagerError::ErrorCode::eFailedToGetQueue, vk::to_string(err.error())));
-    }
-
-    return {};
+    ctx.mDevice.swap(raw);
+    ctx.mGraphicsQueue = ctx.mDevice.getQueue(indices.graphicsFamily.value(), 0);
+    ctx.mPresentQueue = ctx.mDevice.getQueue(indices.presentFamily.value(), 0);
 }
 
 auto DeviceManager::rateDeviceSuitability(const vk::raii::PhysicalDevice& device, VulkanContext& ctx) -> int {
@@ -111,7 +83,7 @@ auto DeviceManager::rateDeviceSuitability(const vk::raii::PhysicalDevice& device
 
     if (extensionsSupported) {
         auto swapChainSupport = SurfaceManager::QuerySwapChainSupport(ctx, device);
-        swapChainAdequate = !swapChainSupport->formats.empty() && !swapChainSupport->presentModes.empty();
+        swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
 
     if (!indices.IsComplete() || !extensionsSupported || !swapChainAdequate) {
@@ -138,4 +110,4 @@ auto DeviceManager::checkDeviceExtensionSupport(const vk::raii::PhysicalDevice& 
     return requiredExtensions.empty();
 }
 
-}  // namespace solaris::core
+}  // namespace Solaris::Graphics::Vulkan

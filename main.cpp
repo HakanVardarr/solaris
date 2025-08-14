@@ -1,8 +1,8 @@
-#include "core/application.hpp"
-#include "fmt/formatters.hpp"  // IWYU pragma: keep
+#include "Application.hpp"
 
 #include <spdlog/common.h>
 #include <spdlog/spdlog.h>
+#include <stdexcept>
 
 auto main(int argc, char** argv) -> int {
 #ifndef NDEBUG
@@ -11,10 +11,12 @@ auto main(int argc, char** argv) -> int {
     spdlog::set_level(spdlog::level::info);
 #endif
 
-    solaris::core::Application app;
-    if (auto result = app.Run(); !result) {
-        spdlog::error("{}", result.error());
-        return EXIT_FAILURE;
+    try {
+        Application app;
+        app.Run();
+
+    } catch (std::runtime_error& err) {
+        spdlog::error("{}", err.what());
     }
 
     return EXIT_SUCCESS;

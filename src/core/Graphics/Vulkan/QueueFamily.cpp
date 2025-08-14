@@ -1,7 +1,7 @@
-#include "core/queue_family.hpp"
-#include "core/vulkan_context.hpp"
+#include "Graphics/Vulkan/QueueFamily.hpp"
+#include "Graphics/Vulkan/Context.hpp"
 
-namespace solaris::core {
+namespace Solaris::Graphics::Vulkan {
 
 auto findQueueFamilies(const vk::raii::PhysicalDevice& device, VulkanContext& ctx) -> QueueFamilyIndices {
     QueueFamilyIndices indices;
@@ -28,4 +28,4 @@ auto findQueueFamilies(const vk::raii::PhysicalDevice& device, VulkanContext& ct
     return indices;
 }
 
-}  // namespace solaris::core
+}  // namespace Solaris::Graphics::Vulkan

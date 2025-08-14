@@ -1,13 +1,8 @@
-#include "core/vulkan_context.hpp"
-#include "core/device_manager.hpp"
-#include "core/surface_manager.hpp"
-#include "errors/vulkan_context_error.hpp"
-
-#include "fmt/formatters.hpp"  // IWYU pragma: keep
-#include "macros.hpp"
+#include "Graphics/Vulkan/Context.hpp"
+#include "Graphics/Vulkan/DeviceManager.hpp"
+#include "Graphics/Vulkan/SurfaceManager.hpp"
 
 #include <GLFW/glfw3.h>
-#include <__expected/unexpected.h>
 #include <spdlog/spdlog.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
@@ -19,13 +14,15 @@
 #include <vulkan/vulkan_to_string.hpp>
 
 #include <algorithm>
-#include <expected>
 #include <vector>
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
                                                            VkDebugUtilsMessageTypeFlagsEXT message_type,
                                                            const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
                                                            void* user_data) {
+    spdlog::warn("[Vulkan] {} - {}: {}", callback_data->messageIdNumber, callback_data->pMessageIdName,
+                 callback_data->pMessage);
+
     if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
         spdlog::warn("[Vulkan] {} - {}: {}", callback_data->messageIdNumber, callback_data->pMessageIdName,
                      callback_data->pMessage);
@@ -37,31 +34,17 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(VkDebugUtilsMessageSe
     return VK_FALSE;
 }
 
-namespace solaris::core {
+namespace Solaris::Graphics::Vulkan {
 
-using solaris::errors::VulkanContextError;
+auto VulkanContext::init(GLFWwindow* pWindow) -> void {
+    createInstance();
+    SurfaceManager::Create(*this, pWindow);
+    DeviceManager::pickPhysicalDevice(*this);
 
-auto VulkanContext::init(GLFWwindow* pWindow) -> EXPECT_VOID(VulkanContextError) {
-    if (auto result = createInstance(); !result) {
-        return std::unexpected(result.error());
-    }
-
-    if (auto result = SurfaceManager::Create(*this, pWindow); !result) {
-        return std::unexpected(
-            VulkanContextError(VulkanContextError::ErrorCode::eSurfaceManager, fmt::format("{}", result.error())));
-    }
-
-    if (auto result = DeviceManager::pickPhysicalDevice(*this); !result) {
-        return std::unexpected(
-            VulkanContextError(VulkanContextError::ErrorCode::eDeviceManager, fmt::format("{}", result.error())));
-    }
-
-    auto deviceProperties = mPhysicalDevice.getProperties();
-
-    return {};
+    // auto deviceProperties = mPhysicalDevice.getProperties();
 }
 
-auto VulkanContext::createInstance() -> EXPECT_VOID(VulkanContextError) {
+auto VulkanContext::createInstance() -> void {
     auto extensions = getRequiredExtensions();
 
     vk::ApplicationInfo applicationInfo{"Triangle", 1, "Solaris", 1, VK_API_VERSION_1_1};
@@ -76,22 +59,20 @@ auto VulkanContext::createInstance() -> EXPECT_VOID(VulkanContextError) {
     spdlog::debug("API Version: {}.{}.{}", VK_VERSION_MAJOR(applicationInfo.apiVersion),
                   VK_VERSION_MINOR(applicationInfo.apiVersion), VK_VERSION_PATCH(applicationInfo.apiVersion));
 
-    vk::InstanceCreateInfo instanceCreateInfo(vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR, &applicationInfo,
-                                              {}, {}, static_cast<uint32_t>(extensions.size()), extensions.data(),
-                                              nullptr);
+    vk::InstanceCreateInfo instanceCreateInfo({}, &applicationInfo, {}, {}, static_cast<uint32_t>(extensions.size()),
+                                              extensions.data(), nullptr);
+
+#if defined(__APPLE__) || defined(__MACH__)
+    instanceCreateInfo.setFlags(vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR);
+#endif
 
     if (validationEnabled) {
         instanceCreateInfo.setEnabledLayerCount(static_cast<uint32_t>(validationLayers.size()));
         instanceCreateInfo.setPpEnabledLayerNames(validationLayers.data());
     }
 
-    auto instance = vk::createInstance(instanceCreateInfo, nullptr);
-    if (instance.result != vk::Result::eSuccess) {
-        return std::unexpected(VulkanContextError(VulkanContextError::ErrorCode::eEnumerateInstanceProperties,
-                                                  vk::to_string(instance.result)));
-    }
+    mInstance = vk::raii::Instance(mCtx, instanceCreateInfo, nullptr);
 
-    mInstance = vk::raii::Instance(mCtx, instance.value, nullptr);
     if (validationEnabled) {
         vk::DebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo(
             {},
@@ -99,34 +80,15 @@ auto VulkanContext::createInstance() -> EXPECT_VOID(VulkanContextError) {
                 vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose,
             vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
                 vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral,
-            debugUtilsMessengerCallback, nullptr);
+            reinterpret_cast<vk::PFN_DebugUtilsMessengerCallbackEXT>(debugUtilsMessengerCallback), nullptr);
 
-        auto result = mInstance.createDebugUtilsMessengerEXT(debugMessengerCreateInfo);
-
-        if (!result) {
-            spdlog::info("{}", vk::to_string(result.error()));
-            return std::unexpected(
-                VulkanContextError(VulkanContextError::ErrorCode::eDebugMessenger, vk::to_string(result.error())));
-        }
-        mDebugMessenger.swap(result.value());
+        auto debugMessenger = mInstance.createDebugUtilsMessengerEXT(debugMessengerCreateInfo);
+        mDebugMessenger.swap(debugMessenger);
     }
-
-    return {};
 }
 
-auto VulkanContext::checkValidationLayerSupport() -> std::expected<bool, VulkanContextError> {
-    uint32_t layerCount;
-    if (auto result = vk::enumerateInstanceLayerProperties(&layerCount, nullptr); result != vk::Result::eSuccess) {
-        return std::unexpected(
-            VulkanContextError(VulkanContextError::ErrorCode::eEnumerateInstanceProperties, vk::to_string(result)));
-    }
-
-    std::vector<vk::LayerProperties> availableLayers(layerCount);
-    if (auto result = vk::enumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-        result != vk::Result::eSuccess) {
-        return std::unexpected(
-            VulkanContextError(VulkanContextError::ErrorCode::eEnumerateInstanceProperties, vk::to_string(result)));
-    }
+auto VulkanContext::checkValidationLayerSupport() -> bool {
+    std::vector<vk::LayerProperties> availableLayers = mCtx.enumerateInstanceLayerProperties();
 
     for (auto layerName : validationLayers) {
         bool found = std::ranges::any_of(availableLayers,
@@ -154,4 +116,4 @@ auto VulkanContext::getRequiredExtensions() -> std::vector<const char*> {
     return extensions;
 }
 
-}  // namespace solaris::core
+}  // namespace Solaris::Graphics::Vulkan

@@ -1,18 +1,12 @@
 #pragma once
-#include "core/vulkan_context.hpp"
-#include "errors/surface_manager_error.hpp"
-#include "macros.hpp"
+#include "Graphics/Vulkan/Context.hpp"
 
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_raii.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
-namespace solaris::core {
-
-using solaris::errors::SurfaceManagerError;
-
-class VulkanContext;
+namespace Solaris::Graphics::Vulkan {
 
 struct SwapchainSupportDetails {
     vk::SurfaceCapabilitiesKHR capabilities;
@@ -24,12 +18,11 @@ class SurfaceManager {
    public:
     ~SurfaceManager() { mSurfaceKHR.clear(); }
 
-    static auto Create(VulkanContext&, GLFWwindow*) -> EXPECT_VOID(SurfaceManagerError);
-    static auto QuerySwapChainSupport(VulkanContext&, vk::raii::PhysicalDevice)
-        -> std::expected<SwapchainSupportDetails, SurfaceManagerError>;
+    static auto Create(VulkanContext&, GLFWwindow*) -> void;
+    static auto QuerySwapChainSupport(VulkanContext&, vk::raii::PhysicalDevice) -> SwapchainSupportDetails;
 
    private:
     vk::raii::SurfaceKHR mSurfaceKHR{nullptr};
 };
 
-}  // namespace solaris::core
+}  // namespace Solaris::Graphics::Vulkan

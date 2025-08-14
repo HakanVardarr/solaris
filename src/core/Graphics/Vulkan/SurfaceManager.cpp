@@ -1,30 +1,26 @@
-#include "core/surface_manager.hpp"
-#include "core/vulkan_context.hpp"
-#include "errors/surface_manager_error.hpp"
-#include "macros.hpp"
+#include "Graphics/Vulkan/SurfaceManager.hpp"
+#include "Graphics/Vulkan/Context.hpp"
 
 #include <GLFW/glfw3.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
 
+#include <stdexcept>
 #include <vulkan/vulkan_raii.hpp>
 
-namespace solaris::core {
+namespace Solaris::Graphics::Vulkan {
 
-auto SurfaceManager::Create(VulkanContext& ctx, GLFWwindow* pWindow) -> EXPECT_VOID(SurfaceManagerError) {
+auto SurfaceManager::Create(VulkanContext& ctx, GLFWwindow* pWindow) -> void {
     VkSurfaceKHR _surface;
     if (auto err = glfwCreateWindowSurface(*ctx.mInstance, pWindow, nullptr, &_surface); err != VK_SUCCESS) {
-        std::unexpected(
-            SurfaceManagerError(SurfaceManagerError::ErrorCode::eFailedToCreateSurface, string_VkResult(err)));
+        throw std::runtime_error("Failed to create window surface.");
     }
     auto surface = vk::raii::SurfaceKHR(ctx.mInstance, _surface);
-
     ctx.mSurface.swap(surface);
-    return {};
 }
 
 auto SurfaceManager::QuerySwapChainSupport(VulkanContext& ctx, vk::raii::PhysicalDevice device)
-    -> std::expected<SwapchainSupportDetails, SurfaceManagerError> {
+    -> SwapchainSupportDetails {
     SwapchainSupportDetails details;
 
     details.formats = device.getSurfaceFormatsKHR(ctx.mSurface);
@@ -34,4 +30,4 @@ auto SurfaceManager::QuerySwapChainSupport(VulkanContext& ctx, vk::raii::Physica
     return details;
 }
 
-}  // namespace solaris::core
+}  // namespace Solaris::Graphics::Vulkan

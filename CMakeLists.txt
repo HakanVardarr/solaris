@@ -29,6 +29,5 @@ target_link_libraries(solaris
 
 target_compile_definitions(solaris PRIVATE
     $<$<CONFIG:Release>:NDEBUG>
-    VULKAN_HPP_NO_EXCEPTIONS
     GLFW_INCLUDE_VULKAN
 )

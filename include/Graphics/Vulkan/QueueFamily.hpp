@@ -1,15 +1,13 @@
 #pragma once
+#include "Graphics/Vulkan/Context.hpp"
+
+#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
 #include <cstdint>
 #include <optional>
 
-#include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_raii.hpp>
-#include "core/vulkan_context.hpp"
-
-namespace solaris::core {
-
-class VulkanContext;
+namespace Solaris::Graphics::Vulkan {
 
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
@@ -20,4 +18,4 @@ struct QueueFamilyIndices {
 
 auto findQueueFamilies(const vk::raii::PhysicalDevice& device, VulkanContext& ctx) -> QueueFamilyIndices;
 
-}  // namespace solaris::core
+}  // namespace Solaris::Graphics::Vulkan

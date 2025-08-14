@@ -1,27 +1,19 @@
-#include "core/application.hpp"
-#include "errors/application_error.hpp"
-#include "fmt/formatters.hpp"  // IWYU pragma: keep
-#include "macros.hpp"
+#include "Application.hpp"
 
 #include <spdlog/fmt/bundled/format.h>
 #include <spdlog/spdlog.h>
-#include <vulkan/vulkan_core.h>
-
 #include <vulkan/vk_enum_string_helper.h>
-#include <expected>
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-namespace solaris::core {
+#include <stdexcept>
 
-using solaris::errors::ApplicationError;
-
-auto Application::Run() -> EXPECT_VOID(ApplicationError) {
-    RETURN_ERROR(initWindow());
-    RETURN_ERROR(initVulkan());
-    RETURN_ERROR(mainLoop());
-
-    return {};
+auto Application::Run() -> void {
+    initWindow();
+    initVulkan();
+    mainLoop();
 }
 
 Application::~Application() {
@@ -32,12 +24,12 @@ Application::~Application() {
     glfwTerminate();
 }
 
-auto Application::initWindow() -> EXPECT_VOID(ApplicationError) {
+auto Application::initWindow() -> void {
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
 
     if (glfwInit() == GLFW_FALSE) {
-        return std::unexpected(ApplicationError{.mErrorCode = ApplicationError::ErrorCode::eGLFWInitialization});
+        throw std::runtime_error("Failed to initialize GLFW");
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -45,26 +37,19 @@ auto Application::initWindow() -> EXPECT_VOID(ApplicationError) {
 
     pWindow = glfwCreateWindow(WIDTH, HEIGHT, "solaris", nullptr, nullptr);
     if (pWindow == nullptr) {
-        return std::unexpected(ApplicationError{.mErrorCode = ApplicationError::ErrorCode::eWindowCreation});
+        throw std::runtime_error("Failed to create window");
     }
-
-    return {};
 }
 
-auto Application::initVulkan() -> EXPECT_VOID(ApplicationError) {
-    if (auto result = mContext.init(pWindow); !result) {
-        return std::unexpected(ApplicationError{.mErrorCode = ApplicationError::ErrorCode::eVulkanContext,
-                                                .mErrorMessage = fmt::format("{}", result.error())});
+auto Application::initVulkan() -> void {
+    try {
+        mContext.init(pWindow);
+    } catch (vk::SystemError& err) {
+        throw std::runtime_error(err.what());
     }
-
-    return {};
 }
-auto Application::mainLoop() -> EXPECT_VOID(ApplicationError) {
+auto Application::mainLoop() -> void {
     while (glfwWindowShouldClose(pWindow) == GLFW_FALSE) {
         glfwPollEvents();
     }
-
-    return {};
 }
-
-}  // namespace solaris::core
