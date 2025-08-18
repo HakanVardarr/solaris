@@ -1,19 +1,12 @@
-#include "Graphics/Vulkan/Pipeline.hpp"
-#include <vulkan/vulkan_core.h>
+#include "Graphics/Vulkan/Context.hpp"
 
-#include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_raii.hpp>
-
-#include <cstddef>
-#include <cstdint>
 #include <fstream>
-#include <stdexcept>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
 namespace Solaris::Graphics::Vulkan {
 
-auto readFile(const std::string& fileName) -> std::vector<char> {
+std::vector<char> readFile(const std::string& fileName) {
     std::ifstream file(fileName, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
@@ -28,31 +21,67 @@ auto readFile(const std::string& fileName) -> std::vector<char> {
     return buffer;
 }
 
-auto createShaderModule(VulkanContext& ctx, const std::vector<char>& code) -> vk::raii::ShaderModule {
+vk::raii::ShaderModule createShaderModule(const vk::raii::Device& device, const std::vector<char>& code) {
     vk::ShaderModuleCreateInfo createInfo({}, code.size(), reinterpret_cast<const uint32_t*>(code.data()));
-
-    return vk::raii::ShaderModule(ctx.mDevice, createInfo);
+    return vk::raii::ShaderModule(device, createInfo);
 }
 
-auto CreateGraphicsPipeline(VulkanContext& ctx) -> void {
+void Context::initPipeline() {
+    // Render Pass
+    vk::AttachmentDescription colorAttachment{};
+    colorAttachment.format = swapchainFormat;
+    colorAttachment.samples = vk::SampleCountFlagBits::e1;
+    colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+    colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+    colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+    colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eStore;
+    colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+    colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+
+    vk::AttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+    vk::SubpassDescription subpass{};
+    subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    vk::SubpassDependency dependency{};
+    dependency.setSrcSubpass(vk::SubpassExternal);
+    dependency.setDstSubpass(0);
+    dependency.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+    dependency.setSrcAccessMask(vk::AccessFlagBits::eNone);
+    dependency.setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+    dependency.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
+
+    vk::RenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.setDependencyCount(1);
+    renderPassInfo.setPDependencies(&dependency);
+
+    renderPass = {device, renderPassInfo};
+
     auto vertShaderCode = readFile("shaders/shader.vert.spv");
     auto fragShaderCode = readFile("shaders/shader.frag.spv");
 
-    vk::raii::ShaderModule vertShaderModule = createShaderModule(ctx, vertShaderCode);
-    vk::raii::ShaderModule fragShaderModule = createShaderModule(ctx, fragShaderCode);
+    vk::raii::ShaderModule vertShaderModule = createShaderModule(device, vertShaderCode);
+    vk::raii::ShaderModule fragShaderModule = createShaderModule(device, fragShaderCode);
 
-    vk::PipelineShaderStageCreateInfo vertShaderStageInfo{};
-    vertShaderStageInfo.setStage(vk::ShaderStageFlagBits::eVertex);
-    vertShaderStageInfo.setModule(vertShaderModule);
-    vertShaderStageInfo.setPName("main");
+    vk::PipelineShaderStageCreateInfo vsi{};
+    vsi.setStage(vk::ShaderStageFlagBits::eVertex);
+    vsi.setModule(vertShaderModule);
+    vsi.setPName("main");
 
-    vk::PipelineShaderStageCreateInfo fragShaderStageInfo{};
-    fragShaderStageInfo.setStage(vk::ShaderStageFlagBits::eFragment);
-    fragShaderStageInfo.setModule(fragShaderModule);
-    fragShaderStageInfo.setPName("main");
+    vk::PipelineShaderStageCreateInfo fsi{};
+    fsi.setStage(vk::ShaderStageFlagBits::eFragment);
+    fsi.setModule(fragShaderModule);
+    fsi.setPName("main");
 
-    vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
-
+    vk::PipelineShaderStageCreateInfo shaderStages[] = {vsi, fsi};
     std::vector<vk::DynamicState> dynamicStates = {
         vk::DynamicState::eViewport,
         vk::DynamicState::eScissor,
@@ -116,7 +145,7 @@ auto CreateGraphicsPipeline(VulkanContext& ctx) -> void {
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-    ctx.mPipelineLayout = {ctx.mDevice, pipelineLayoutInfo};
+    pipelineLayout = {device, pipelineLayoutInfo};
 
     vk::GraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.setStageCount(2);
@@ -129,12 +158,13 @@ auto CreateGraphicsPipeline(VulkanContext& ctx) -> void {
     pipelineInfo.setPDepthStencilState(nullptr);
     pipelineInfo.setPColorBlendState(&colorBlending);
     pipelineInfo.setPDynamicState(&dynamicState);
-    pipelineInfo.setLayout(ctx.mPipelineLayout);
-    pipelineInfo.setRenderPass(ctx.mRenderPass);
+    pipelineInfo.setLayout(pipelineLayout);
+    pipelineInfo.setRenderPass(renderPass);
     pipelineInfo.setSubpass(0);
     pipelineInfo.setBasePipelineHandle(VK_NULL_HANDLE);
     pipelineInfo.setBasePipelineIndex(-1);
 
-    ctx.mPipeline = ctx.mDevice.createGraphicsPipeline(nullptr, pipelineInfo);
+    pipeline = device.createGraphicsPipeline(nullptr, pipelineInfo);
 }
+
 }  // namespace Solaris::Graphics::Vulkan

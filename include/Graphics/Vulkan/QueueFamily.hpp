@@ -1,5 +1,4 @@
 #pragma once
-#include "Graphics/Vulkan/Context.hpp"
 
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
@@ -13,9 +12,9 @@ struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
 
-    auto IsComplete() -> bool { return graphicsFamily.has_value() && presentFamily.has_value(); }
+    auto isComplete() -> bool { return graphicsFamily.has_value() && presentFamily.has_value(); }
 };
 
-auto FindQueueFamilies(VulkanContext& ctx, const vk::raii::PhysicalDevice& device) -> QueueFamilyIndices;
+auto FindQueueFamilies(const vk::raii::PhysicalDevice& device, const vk::SurfaceKHR) -> QueueFamilyIndices;
 
 }  // namespace Solaris::Graphics::Vulkan

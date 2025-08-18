@@ -1,16 +1,16 @@
-#include "Graphics/Vulkan/Sync.hpp"
+#include "Graphics/Vulkan/Context.hpp"
+
 #include <vulkan/vulkan_enums.hpp>
 
 namespace Solaris::Graphics::Vulkan {
 
-auto CreateSyncObjects(VulkanContext& ctx) -> void {
-    vk::SemaphoreCreateInfo semaphoreInfo{};
-    vk::FenceCreateInfo fenceInfo{};
-    fenceInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
+void Context::initSync() {
+    vk::FenceCreateInfo f{vk::FenceCreateFlagBits::eSignaled};
+    vk::SemaphoreCreateInfo s{};
 
-    ctx.mImageAvailableSemaphore = ctx.mDevice.createSemaphore(semaphoreInfo);
-    ctx.mRenderFinishedSemaphore = ctx.mDevice.createSemaphore(semaphoreInfo);
-    ctx.mInFlightFence = ctx.mDevice.createFence(fenceInfo);
+    inFlightFence = device.createFence(f);
+    imageAvailableSemaphore = device.createSemaphore(s);
+    renderFinishedSemaphore = device.createSemaphore(s);
 }
 
 }  // namespace Solaris::Graphics::Vulkan

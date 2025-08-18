@@ -1,12 +1,6 @@
 #include "Graphics/Vulkan/Context.hpp"
-#include "Graphics/Vulkan/CommandBuffer.hpp"
-#include "Graphics/Vulkan/CommandPool.hpp"
-#include "Graphics/Vulkan/Device.hpp"
-#include "Graphics/Vulkan/Pipeline.hpp"
-#include "Graphics/Vulkan/RenderPass.hpp"
-#include "Graphics/Vulkan/Surface.hpp"
-#include "Graphics/Vulkan/SwapChain.hpp"
-#include "Graphics/Vulkan/Sync.hpp"
+#include "Graphics/Vulkan/QueueFamily.hpp"
+#include "Graphics/Vulkan/Swapchain.hpp"
 
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
@@ -14,12 +8,11 @@
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_raii.hpp>
-#include <vulkan/vulkan_structs.hpp>
-#include <vulkan/vulkan_to_string.hpp>
 
-#include <algorithm>
+#include <map>
+#include <set>
+#include <stdexcept>
 #include <vector>
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
@@ -40,90 +33,168 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(VkDebugUtilsMessageSe
 
 namespace Solaris::Graphics::Vulkan {
 
-auto VulkanContext::Init(GLFWwindow* pWindow) -> void {
-    createInstance();
-    CreateSurface(*this, pWindow);
-    PickPhysicalDevice(*this);
-    CreateLogicalDevice(*this);
-    CreateSwapChain(*this, pWindow);
-    CreateRenderPass(*this);
-    CreateGraphicsPipeline(*this);
-    CreateFrameBuffers(*this);
-    CreateCommandPool(*this);
-    CreateCommandBuffer(*this);
-    CreateSyncObjects(*this);
-}
-
-auto VulkanContext::createInstance() -> void {
-    auto extensions = getRequiredExtensions();
-
-    vk::ApplicationInfo applicationInfo{"Triangle", 1, "Solaris", 1, VK_API_VERSION_1_1};
-
-    spdlog::debug("Application Name: {}", applicationInfo.pApplicationName);
-    spdlog::debug("Application Version: {}.{}.{}", VK_VERSION_MAJOR(applicationInfo.applicationVersion),
-                  VK_VERSION_MINOR(applicationInfo.applicationVersion),
-                  VK_VERSION_PATCH(applicationInfo.applicationVersion));
-    spdlog::debug("Engine Name: {}", applicationInfo.pEngineName);
-    spdlog::debug("Engine Version: {}.{}.{}", VK_VERSION_MAJOR(applicationInfo.engineVersion),
-                  VK_VERSION_MINOR(applicationInfo.engineVersion), VK_VERSION_PATCH(applicationInfo.engineVersion));
-    spdlog::debug("API Version: {}.{}.{}", VK_VERSION_MAJOR(applicationInfo.apiVersion),
-                  VK_VERSION_MINOR(applicationInfo.apiVersion), VK_VERSION_PATCH(applicationInfo.apiVersion));
-
-    vk::InstanceCreateInfo instanceCreateInfo({}, &applicationInfo, {}, {}, static_cast<uint32_t>(extensions.size()),
-                                              extensions.data(), nullptr);
-
+const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 #if defined(__APPLE__) || defined(__MACH__)
-    instanceCreateInfo.setFlags(vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR);
+const std::vector<const char*> deviceExtensions = {vk::KHRSwapchainExtensionName, "VK_KHR_portability_subset"};
+#else
+const std::vector<const char*> deviceExtensions = {vk::KHRSwapchainExtensionName};
 #endif
 
-    if (validationEnabled) {
-        instanceCreateInfo.setEnabledLayerCount(static_cast<uint32_t>(validationLayers.size()));
-        instanceCreateInfo.setPpEnabledLayerNames(validationLayers.data());
-    }
+[[nodiscard]] std::vector<const char*> getRequiredExtensions(const bool& validationEnabled) {
+    uint32_t glfwExtensionsCount = 0;
+    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionsCount);
 
-    mInstance = vk::raii::Instance(mCtx, instanceCreateInfo, nullptr);
-
-    if (validationEnabled) {
-        vk::DebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo(
-            {},
-            vk::DebugUtilsMessageSeverityFlagBitsEXT::eError | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-                vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose,
-            vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
-                vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral,
-            reinterpret_cast<PFN_vkDebugUtilsMessengerCallbackEXT>(debugUtilsMessengerCallback), nullptr);
-
-        auto debugMessenger = mInstance.createDebugUtilsMessengerEXT(debugMessengerCreateInfo);
-        mDebugMessenger.swap(debugMessenger);
-    }
-}
-
-auto VulkanContext::checkValidationLayerSupport() -> bool {
-    std::vector<vk::LayerProperties> availableLayers = mCtx.enumerateInstanceLayerProperties();
-
-    for (auto layerName : validationLayers) {
-        bool found = std::ranges::any_of(availableLayers,
-                                         [&](const auto& layer) { return std::strcmp(layerName, layer.layerName); });
-        if (!found) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-auto VulkanContext::getRequiredExtensions() -> std::vector<const char*> {
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-    std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionsCount);
     if (validationEnabled) {
         extensions.push_back(vk::EXTDebugUtilsExtensionName);
     }
 #if defined(__APPLE__) || defined(__MACH__)
     extensions.emplace_back(vk::KHRPortabilityEnumerationExtensionName);
 #endif
-
     return extensions;
+}
+
+[[nodiscard]] bool checkDeviceExtensionSupport(const vk::raii::PhysicalDevice& device) {
+    auto availableExtensions = device.enumerateDeviceExtensionProperties();
+    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+
+    for (const auto& extension : availableExtensions) {
+        requiredExtensions.erase(extension.extensionName);
+    }
+
+    return requiredExtensions.empty();
+}
+
+[[nodiscard]] int rateDeviceSuitability(const vk::raii::SurfaceKHR& surface, const vk::raii::PhysicalDevice& device) {
+    int score = 0;
+
+    auto deviceProperties = device.getProperties();
+    auto deviceFeatures = device.getFeatures();
+    auto indices = FindQueueFamilies(device, surface);
+
+    bool extensionsSupported = checkDeviceExtensionSupport(device);
+    bool swapChainAdequate = false;
+
+    if (extensionsSupported) {
+        auto swapChainSupport = QuerySwapChainSupport(surface, device);
+        swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+    }
+
+    if (!indices.isComplete() || !extensionsSupported || !swapChainAdequate) {
+        return 0;
+    }
+
+    if (deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
+        score += 1000;
+    }
+
+    score += deviceProperties.limits.maxImageDimension2D;
+    return score;
+
+    return score;
+}
+
+void Context::init(GLFWwindow* window) {
+    // Instance + Devices
+    initCore(window);
+    // Swapchain
+    initSwapchain(window);
+    // Render Pass + Pipeline
+    initPipeline();
+    // Views + Framebuffers
+    initSwapchainResources();
+    // Command Pool + Command Buffer
+    initCommands();
+    // Sync
+    initSync();
+}
+
+void Context::initCore(GLFWwindow* window) {
+    // Instance
+    vk::ApplicationInfo ai{};
+    ai.setPApplicationName("Triangle");
+    ai.setApplicationVersion(VK_MAKE_VERSION(0, 0, 1));
+    ai.setPEngineName("Solaris");
+    ai.setEngineVersion(VK_MAKE_VERSION(0, 0, 1));
+    ai.setApiVersion(VK_API_VERSION_1_1);
+
+    std::vector<const char*> extensions = getRequiredExtensions(validationEnabled);
+    vk::InstanceCreateInfo ici{};
+    ici.setPApplicationInfo(&ai);
+    ici.setEnabledExtensionCount(static_cast<uint32_t>(extensions.size()));
+    ici.setPpEnabledExtensionNames(extensions.data());
+#if defined(__APPLE__) || defined(__MACH__)
+    ici.setFlags(vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR);
+#endif
+    if (validationEnabled) {
+        ici.setEnabledLayerCount(static_cast<uint32_t>(validationLayers.size()));
+        ici.setPpEnabledLayerNames(validationLayers.data());
+    }
+    instance = {vulkanContext, ici, nullptr};
+
+    // DebugMessenger
+    if (validationEnabled) {
+        vk::DebugUtilsMessengerCreateInfoEXT dmi{};
+        dmi.setMessageSeverity(vk::DebugUtilsMessageSeverityFlagBitsEXT::eError |
+                               vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+                               vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose);
+        dmi.setMessageType(vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
+                           vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
+                           vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral);
+        dmi.setPfnUserCallback(reinterpret_cast<PFN_vkDebugUtilsMessengerCallbackEXT>(debugUtilsMessengerCallback));
+        debugMessenger = instance.createDebugUtilsMessengerEXT(dmi);
+    }
+
+    // Surface
+    VkSurfaceKHR _surface;
+    if (auto result = glfwCreateWindowSurface(*instance, window, nullptr, &_surface); result != VK_SUCCESS) {
+        throw std::runtime_error(std::format("Failed to create window surface: {}", string_VkResult(result)));
+    }
+    surface = {instance, _surface};
+
+    // Physical Device
+    std::vector<vk::raii::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
+    if (devices.empty()) {
+        throw std::runtime_error("Failed to find GPUs on device.");
+    }
+
+    std::multimap<int, vk::raii::PhysicalDevice> candidates;
+    for (auto& device : devices) {
+        int score = rateDeviceSuitability(surface, device);
+        candidates.emplace(score, std::move(device));
+    }
+
+    auto best = candidates.rbegin();
+    if (best->first <= 0) {
+        throw std::runtime_error("Failed to find suitable GPU device.");
+    }
+
+    physicalDevice = std::move(best->second);
+
+    // Logical Device
+    auto indices = FindQueueFamilies(physicalDevice, surface);
+    std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+    std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+
+    float queuePriority = 1.0f;
+    for (uint32_t queueFamily : uniqueQueueFamilies) {
+        vk::DeviceQueueCreateInfo di({}, queueFamily, 1, &queuePriority);
+        queueCreateInfos.push_back(di);
+    }
+
+    vk::PhysicalDeviceFeatures df{};
+    vk::DeviceCreateInfo di{{}, static_cast<uint32_t>(queueCreateInfos.size()), queueCreateInfos.data(), {},
+                            {}, static_cast<uint32_t>(deviceExtensions.size()), deviceExtensions.data(), &df};
+    if (validationEnabled) {
+        di.setEnabledLayerCount(static_cast<uint32_t>(validationLayers.size()));
+        di.setPpEnabledLayerNames(validationLayers.data());
+    } else {
+        di.setEnabledLayerCount(0);
+    }
+
+    device = {physicalDevice, di};
+    graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);
+    presentQueue = device.getQueue(indices.presentFamily.value(), 0);
 }
 
 }  // namespace Solaris::Graphics::Vulkan

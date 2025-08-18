@@ -9,12 +9,12 @@ class Application {
     ~Application();
 
    private:
-    auto initWindow() -> void;
-    auto initVulkan() -> void;
-    auto mainLoop() -> void;
-    auto recordCommandBuffer(uint32_t imageIndex) -> void;
-    auto drawFrame() -> void;
+    void initWindow();
+    void initVulkan();
+    void mainLoop();
+    void recordCommandBuffer(uint32_t imageIndex);
+    void drawFrame();
 
     GLFWwindow* pWindow = nullptr;
-    Solaris::Graphics::Vulkan::VulkanContext mContext;
+    Solaris::Graphics::Vulkan::Context mContext;
 };

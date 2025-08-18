@@ -1,7 +1,4 @@
 #pragma once
-#include "Graphics/Vulkan/Context.hpp"
-
-#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
 namespace Solaris::Graphics::Vulkan {
@@ -12,8 +9,7 @@ struct SwapchainSupportDetails {
     std::vector<vk::PresentModeKHR> presentModes;
 };
 
-auto QuerySwapChainSupport(VulkanContext&, vk::raii::PhysicalDevice) -> SwapchainSupportDetails;
-auto CreateSwapChain(VulkanContext&, GLFWwindow*) -> void;
-auto CreateFrameBuffers(VulkanContext&) -> void;
+[[nodiscard]] SwapchainSupportDetails QuerySwapChainSupport(const vk::raii::SurfaceKHR&,
+                                                            const vk::raii::PhysicalDevice&);
 
 }  // namespace Solaris::Graphics::Vulkan

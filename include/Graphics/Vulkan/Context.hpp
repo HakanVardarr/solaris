@@ -1,53 +1,58 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
-#include <spdlog/fmt/bundled/format.h>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
-#include <vulkan/vulkan_structs.hpp>
 
 namespace Solaris::Graphics::Vulkan {
 
-const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+struct Context {
+    // Core
+    vk::raii::Context vulkanContext{};
+    vk::raii::Instance instance{nullptr};
+    vk::raii::DebugUtilsMessengerEXT debugMessenger{nullptr};
+    vk::raii::SurfaceKHR surface{nullptr};
+    vk::raii::PhysicalDevice physicalDevice{nullptr};
+    vk::raii::Device device{nullptr};
+    vk::Queue graphicsQueue{nullptr};
+    vk::Queue presentQueue{nullptr};
 
-struct VulkanContext {
-    ~VulkanContext() {}
+    // Swapchain + Swapchain resources
+    vk::raii::SwapchainKHR swapchain{nullptr};
+    vk::Format swapchainFormat{};
+    vk::Extent2D swapchainExtent{};
+    std::vector<vk::Image> swapchainImages{};
+    std::vector<vk::raii::ImageView> swapchainViews{};
+    std::vector<vk::raii::Framebuffer> swapchainFramebuffers{};
 
-    vk::raii::Context mCtx{};
-    vk::raii::Instance mInstance{nullptr};
-    vk::raii::SurfaceKHR mSurface{nullptr};
-    vk::raii::DebugUtilsMessengerEXT mDebugMessenger{nullptr};
-    vk::raii::PhysicalDevice mPhysicalDevice{nullptr};
-    vk::raii::Device mDevice{nullptr};
-    vk::raii::Queue mGraphicsQueue{nullptr};
-    vk::raii::Queue mPresentQueue{nullptr};
-    vk::raii::SwapchainKHR mSwapChain{nullptr};
-    std::vector<vk::Image> mSwapChainImages{};
-    vk::Format mSwapChainImageFormat;
-    vk::Extent2D mSwapChainExtent;
-    std::vector<vk::raii::ImageView> mSwapChainImageViews{};
-    vk::raii::RenderPass mRenderPass{nullptr};
-    vk::raii::PipelineLayout mPipelineLayout{nullptr};
-    vk::raii::Pipeline mPipeline{nullptr};
-    std::vector<vk::raii::Framebuffer> mSwapChainFramebuffers{};
-    vk::raii::CommandPool mCommandPool{nullptr};
-    vk::raii::CommandBuffer mCommandBuffer{nullptr};
-    vk::raii::Semaphore mImageAvailableSemaphore{nullptr};
-    vk::raii::Semaphore mRenderFinishedSemaphore{nullptr};
-    vk::raii::Fence mInFlightFence{nullptr};
+    // Render pass / Pipeline
+    vk::raii::RenderPass renderPass{nullptr};
+    vk::raii::PipelineLayout pipelineLayout{nullptr};
+    vk::raii::Pipeline pipeline{nullptr};
 
-#ifdef NDEBUG
+    // Command Pool + Command Buffer
+    vk::raii::CommandPool commandPool{nullptr};
+    vk::raii::CommandBuffer commandBuffer{nullptr};
+
+    // Sync
+    vk::raii::Semaphore imageAvailableSemaphore{nullptr};
+    vk::raii::Semaphore renderFinishedSemaphore{nullptr};
+    vk::raii::Fence inFlightFence{nullptr};
+
+#if defined(NDEBUG)
     bool validationEnabled = false;
 #else
     bool validationEnabled = true;
 #endif
 
-    auto Init(GLFWwindow*) -> void;
-
-   private:
-    auto createInstance() -> void;
-    auto checkValidationLayerSupport() -> bool;
-    auto getRequiredExtensions() -> std::vector<const char*>;
+    // API
+    void init(GLFWwindow* window);
+    void initCore(GLFWwindow* window);
+    void initSwapchain(GLFWwindow* window);
+    void initSwapchainResources();  // views, framebuffers
+    void initPipeline();            // renderPass + pipeline + layout
+    void initCommands();            // command pool
+    void initSync();                // fence/semaphore
 };
 
 }  // namespace Solaris::Graphics::Vulkan
