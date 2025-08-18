@@ -1,6 +1,12 @@
 #include "Graphics/Vulkan/Context.hpp"
-#include "Graphics/Vulkan/DeviceManager.hpp"
-#include "Graphics/Vulkan/SurfaceManager.hpp"
+#include "Graphics/Vulkan/CommandBuffer.hpp"
+#include "Graphics/Vulkan/CommandPool.hpp"
+#include "Graphics/Vulkan/Device.hpp"
+#include "Graphics/Vulkan/Pipeline.hpp"
+#include "Graphics/Vulkan/RenderPass.hpp"
+#include "Graphics/Vulkan/Surface.hpp"
+#include "Graphics/Vulkan/SwapChain.hpp"
+#include "Graphics/Vulkan/Sync.hpp"
 
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
@@ -20,9 +26,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(VkDebugUtilsMessageSe
                                                            VkDebugUtilsMessageTypeFlagsEXT message_type,
                                                            const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
                                                            void* user_data) {
-    spdlog::warn("[Vulkan] {} - {}: {}", callback_data->messageIdNumber, callback_data->pMessageIdName,
-                 callback_data->pMessage);
-
     if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
         spdlog::warn("[Vulkan] {} - {}: {}", callback_data->messageIdNumber, callback_data->pMessageIdName,
                      callback_data->pMessage);
@@ -30,18 +33,25 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(VkDebugUtilsMessageSe
     } else if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
         spdlog::error("[Vulkan] {} - {}: {}", callback_data->messageIdNumber, callback_data->pMessageIdName,
                       callback_data->pMessage);
+        exit(1);
     }
     return VK_FALSE;
 }
 
 namespace Solaris::Graphics::Vulkan {
 
-auto VulkanContext::init(GLFWwindow* pWindow) -> void {
+auto VulkanContext::Init(GLFWwindow* pWindow) -> void {
     createInstance();
-    SurfaceManager::Create(*this, pWindow);
-    DeviceManager::pickPhysicalDevice(*this);
-
-    // auto deviceProperties = mPhysicalDevice.getProperties();
+    CreateSurface(*this, pWindow);
+    PickPhysicalDevice(*this);
+    CreateLogicalDevice(*this);
+    CreateSwapChain(*this, pWindow);
+    CreateRenderPass(*this);
+    CreateGraphicsPipeline(*this);
+    CreateFrameBuffers(*this);
+    CreateCommandPool(*this);
+    CreateCommandBuffer(*this);
+    CreateSyncObjects(*this);
 }
 
 auto VulkanContext::createInstance() -> void {
@@ -80,7 +90,7 @@ auto VulkanContext::createInstance() -> void {
                 vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose,
             vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
                 vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral,
-            reinterpret_cast<vk::PFN_DebugUtilsMessengerCallbackEXT>(debugUtilsMessengerCallback), nullptr);
+            reinterpret_cast<PFN_vkDebugUtilsMessengerCallbackEXT>(debugUtilsMessengerCallback), nullptr);
 
         auto debugMessenger = mInstance.createDebugUtilsMessengerEXT(debugMessengerCreateInfo);
         mDebugMessenger.swap(debugMessenger);

@@ -16,6 +16,6 @@ struct QueueFamilyIndices {
     auto IsComplete() -> bool { return graphicsFamily.has_value() && presentFamily.has_value(); }
 };
 
-auto findQueueFamilies(const vk::raii::PhysicalDevice& device, VulkanContext& ctx) -> QueueFamilyIndices;
+auto FindQueueFamilies(VulkanContext& ctx, const vk::raii::PhysicalDevice& device) -> QueueFamilyIndices;
 
 }  // namespace Solaris::Graphics::Vulkan

@@ -4,6 +4,7 @@
 #include <spdlog/fmt/bundled/format.h>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_structs.hpp>
 
 namespace Solaris::Graphics::Vulkan {
 
@@ -20,6 +21,20 @@ struct VulkanContext {
     vk::raii::Device mDevice{nullptr};
     vk::raii::Queue mGraphicsQueue{nullptr};
     vk::raii::Queue mPresentQueue{nullptr};
+    vk::raii::SwapchainKHR mSwapChain{nullptr};
+    std::vector<vk::Image> mSwapChainImages{};
+    vk::Format mSwapChainImageFormat;
+    vk::Extent2D mSwapChainExtent;
+    std::vector<vk::raii::ImageView> mSwapChainImageViews{};
+    vk::raii::RenderPass mRenderPass{nullptr};
+    vk::raii::PipelineLayout mPipelineLayout{nullptr};
+    vk::raii::Pipeline mPipeline{nullptr};
+    std::vector<vk::raii::Framebuffer> mSwapChainFramebuffers{};
+    vk::raii::CommandPool mCommandPool{nullptr};
+    vk::raii::CommandBuffer mCommandBuffer{nullptr};
+    vk::raii::Semaphore mImageAvailableSemaphore{nullptr};
+    vk::raii::Semaphore mRenderFinishedSemaphore{nullptr};
+    vk::raii::Fence mInFlightFence{nullptr};
 
 #ifdef NDEBUG
     bool validationEnabled = false;
@@ -27,7 +42,7 @@ struct VulkanContext {
     bool validationEnabled = true;
 #endif
 
-    auto init(GLFWwindow*) -> void;
+    auto Init(GLFWwindow*) -> void;
 
    private:
     auto createInstance() -> void;

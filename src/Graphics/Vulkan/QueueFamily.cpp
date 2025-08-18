@@ -3,7 +3,7 @@
 
 namespace Solaris::Graphics::Vulkan {
 
-auto findQueueFamilies(const vk::raii::PhysicalDevice& device, VulkanContext& ctx) -> QueueFamilyIndices {
+auto FindQueueFamilies(VulkanContext& ctx, const vk::raii::PhysicalDevice& device) -> QueueFamilyIndices {
     QueueFamilyIndices indices;
 
     auto queueFamilies = device.getQueueFamilyProperties();
