@@ -1,8 +1,10 @@
 #include "Graphics/Vulkan/Context.hpp"
 
-#include <fstream>
+#include <spdlog/spdlog.h>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_raii.hpp>
+
+#include <fstream>
 
 namespace Solaris::Graphics::Vulkan {
 
@@ -64,6 +66,7 @@ void Context::initPipeline() {
     renderPassInfo.setPDependencies(&dependency);
 
     renderPass = {device, renderPassInfo};
+    spdlog::info("Render pass created.");
 
     auto vertShaderCode = readFile("shaders/shader.vert.spv");
     auto fragShaderCode = readFile("shaders/shader.frag.spv");
@@ -165,6 +168,7 @@ void Context::initPipeline() {
     pipelineInfo.setBasePipelineIndex(-1);
 
     pipeline = device.createGraphicsPipeline(nullptr, pipelineInfo);
+    spdlog::info("Graphics pipeline initialized.");
 }
 
 }  // namespace Solaris::Graphics::Vulkan

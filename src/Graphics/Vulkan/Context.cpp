@@ -18,16 +18,40 @@
 VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
                                                            VkDebugUtilsMessageTypeFlagsEXT message_type,
                                                            const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
-                                                           void* user_data) {
-    if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-        spdlog::warn("[Vulkan] {} - {}: {}", callback_data->messageIdNumber, callback_data->pMessageIdName,
-                     callback_data->pMessage);
-
+                                                           void* /*user_data*/) {
+    spdlog::level::level_enum level = spdlog::level::info;
+    if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+        level = spdlog::level::debug;
+    } else if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
+        level = spdlog::level::info;
+    } else if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+        level = spdlog::level::warn;
     } else if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-        spdlog::error("[Vulkan] {} - {}: {}", callback_data->messageIdNumber, callback_data->pMessageIdName,
-                      callback_data->pMessage);
-        exit(1);
+        level = spdlog::level::err;
     }
+
+    std::string typeStr;
+    if (message_type & VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT)
+        typeStr += "General ";
+    if (message_type & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT)
+        typeStr += "Validation ";
+    if (message_type & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
+        typeStr += "Performance ";
+
+    spdlog::log(level, "[Vulkan][{}] {} - {}: {}", typeStr, callback_data->messageIdNumber,
+                callback_data->pMessageIdName ? callback_data->pMessageIdName : "NoName", callback_data->pMessage);
+
+    for (uint32_t i = 0; i < callback_data->objectCount; i++) {
+        const auto& obj = callback_data->pObjects[i];
+        spdlog::debug("    Object[{}]: type={} handle={:#x} name={}", i, string_VkObjectType(obj.objectType),
+                      (uint64_t)obj.objectHandle, obj.pObjectName ? obj.pObjectName : "Unnamed");
+    }
+
+    if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+        spdlog::critical("Fatal Vulkan error, terminating...");
+        std::exit(1);
+    }
+
     return VK_FALSE;
 }
 
@@ -118,6 +142,8 @@ void Context::initCore(GLFWwindow* window) {
     ai.setEngineVersion(VK_MAKE_VERSION(0, 0, 1));
     ai.setApiVersion(VK_API_VERSION_1_1);
 
+    spdlog::info("Initializing Solaris Vulkan Engine v{}.{}.{}", 0, 0, 1);
+
     std::vector<const char*> extensions = getRequiredExtensions(validationEnabled);
     vk::InstanceCreateInfo ici{};
     ici.setPApplicationInfo(&ai);
@@ -131,6 +157,13 @@ void Context::initCore(GLFWwindow* window) {
         ici.setPpEnabledLayerNames(validationLayers.data());
     }
     instance = {vulkanContext, ici, nullptr};
+
+    spdlog::info("Creating Vulkan instance with {} extensions, {} validation layers", extensions.size(),
+                 validationLayers.size());
+    for (auto& ext : extensions)
+        spdlog::debug("  Extension enabled: {}", ext);
+    for (auto& layer : validationLayers)
+        spdlog::debug("  Validation layer: {}", layer);
 
     // DebugMessenger
     if (validationEnabled) {
@@ -151,6 +184,7 @@ void Context::initCore(GLFWwindow* window) {
         throw std::runtime_error(std::format("Failed to create window surface: {}", string_VkResult(result)));
     }
     surface = {instance, _surface};
+    spdlog::info("Window surface created successfully.");
 
     // Physical Device
     std::vector<vk::raii::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
@@ -171,6 +205,12 @@ void Context::initCore(GLFWwindow* window) {
 
     physicalDevice = std::move(best->second);
 
+    auto deviceProperties = physicalDevice.getProperties();
+    spdlog::info("Found {} Vulkan-capable devices.", devices.size());
+    spdlog::info("Selected device: {} (type: {}, score: {})", deviceProperties.deviceName.data(),
+                 string_VkPhysicalDeviceType(static_cast<VkPhysicalDeviceType>(deviceProperties.deviceType)),
+                 rateDeviceSuitability(surface, physicalDevice));
+
     // Logical Device
     auto indices = FindQueueFamilies(physicalDevice, surface);
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
@@ -181,6 +221,10 @@ void Context::initCore(GLFWwindow* window) {
         vk::DeviceQueueCreateInfo di({}, queueFamily, 1, &queuePriority);
         queueCreateInfos.push_back(di);
     }
+
+    spdlog::info("Creating logical device with {} queues.", uniqueQueueFamilies.size());
+    spdlog::debug("Graphics queue family: {}", indices.graphicsFamily.value());
+    spdlog::debug("Present queue family: {}", indices.presentFamily.value());
 
     vk::PhysicalDeviceFeatures df{};
     vk::DeviceCreateInfo di{{}, static_cast<uint32_t>(queueCreateInfos.size()), queueCreateInfos.data(), {},
@@ -195,6 +239,19 @@ void Context::initCore(GLFWwindow* window) {
     device = {physicalDevice, di};
     graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);
     presentQueue = device.getQueue(indices.presentFamily.value(), 0);
+}
+
+void Context::recreateSwapchain(GLFWwindow* window) {
+    device.waitIdle();
+    vk::raii::SwapchainKHR oldSwap = std::move(swapchain);
+    destroySwapchainResources();
+    initSwapchain(window, oldSwap);
+    initSwapchainResources();
+}
+
+void Context::destroySwapchainResources() {
+    swapchainFramebuffers.clear();
+    swapchainViews.clear();
 }
 
 }  // namespace Solaris::Graphics::Vulkan

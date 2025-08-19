@@ -9,7 +9,7 @@
 
 namespace Solaris::Graphics::Vulkan {
 
-auto chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats) -> vk::SurfaceFormatKHR {
+vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats) {
     for (const auto& availableFormat : availableFormats) {
         if (availableFormat.format == vk::Format::eB8G8R8A8Srgb &&
             availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
@@ -19,7 +19,7 @@ auto chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableF
     return availableFormats[0];
 }
 
-auto chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes) -> vk::PresentModeKHR {
+vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes) {
     for (const auto& availablePresentMode : availablePresentModes) {
         if (availablePresentMode == vk::PresentModeKHR::eMailbox) {
             return availablePresentMode;
@@ -29,7 +29,7 @@ auto chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePrese
     return vk::PresentModeKHR::eFifo;
 }
 
-auto chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, GLFWwindow* window) -> vk::Extent2D {
+vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, GLFWwindow* window) {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
     } else {
@@ -56,7 +56,7 @@ SwapchainSupportDetails QuerySwapChainSupport(const vk::raii::SurfaceKHR& surfac
     return details;
 }
 
-void Context::initSwapchain(GLFWwindow* window) {
+void Context::initSwapchain(GLFWwindow* window, const vk::raii::SwapchainKHR& oldSwapchain) {
     auto swapChainSupport = QuerySwapChainSupport(surface, physicalDevice);
 
     auto format = chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -88,6 +88,10 @@ void Context::initSwapchain(GLFWwindow* window) {
     si.setPresentMode(presentMode);
     si.setClipped(vk::True);
     si.setOldSwapchain(VK_NULL_HANDLE);
+
+    if (*oldSwapchain != VK_NULL_HANDLE) {
+        si.setOldSwapchain(*oldSwapchain);
+    }
 
     swapchain = {device, si};
     swapchainImages = swapchain.getImages();

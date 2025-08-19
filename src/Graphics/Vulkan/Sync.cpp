@@ -8,9 +8,11 @@ void Context::initSync() {
     vk::FenceCreateInfo f{vk::FenceCreateFlagBits::eSignaled};
     vk::SemaphoreCreateInfo s{};
 
-    inFlightFence = device.createFence(f);
-    imageAvailableSemaphore = device.createSemaphore(s);
-    renderFinishedSemaphore = device.createSemaphore(s);
+    for (auto& frame : frames) {
+        frame.inFlightFence = device.createFence(f);
+        frame.imageAvailableSemaphore = device.createSemaphore(s);
+        frame.renderFinishedSemaphore = device.createSemaphore(s);
+    }
 }
 
 }  // namespace Solaris::Graphics::Vulkan

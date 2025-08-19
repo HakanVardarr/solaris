@@ -12,7 +12,7 @@ struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
 
-    auto isComplete() -> bool { return graphicsFamily.has_value() && presentFamily.has_value(); }
+    bool isComplete() { return graphicsFamily.has_value() && presentFamily.has_value(); }
 };
 
 auto FindQueueFamilies(const vk::raii::PhysicalDevice& device, const vk::SurfaceKHR) -> QueueFamilyIndices;

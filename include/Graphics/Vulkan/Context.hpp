@@ -1,4 +1,5 @@
 #pragma once
+#include "Graphics/Vulkan/Frame.hpp"
 
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
@@ -30,14 +31,12 @@ struct Context {
     vk::raii::PipelineLayout pipelineLayout{nullptr};
     vk::raii::Pipeline pipeline{nullptr};
 
-    // Command Pool + Command Buffer
+    // Command Pool
     vk::raii::CommandPool commandPool{nullptr};
-    vk::raii::CommandBuffer commandBuffer{nullptr};
 
-    // Sync
-    vk::raii::Semaphore imageAvailableSemaphore{nullptr};
-    vk::raii::Semaphore renderFinishedSemaphore{nullptr};
-    vk::raii::Fence inFlightFence{nullptr};
+    const static int MAX_FRAMES_IN_FLIGHT = 2;
+    uint32_t currentFrame = 0;
+    Frame frames[MAX_FRAMES_IN_FLIGHT];
 
 #if defined(NDEBUG)
     bool validationEnabled = false;
@@ -48,11 +47,13 @@ struct Context {
     // API
     void init(GLFWwindow* window);
     void initCore(GLFWwindow* window);
-    void initSwapchain(GLFWwindow* window);
+    void initSwapchain(GLFWwindow* window, const vk::raii::SwapchainKHR& oldSwapchain = {nullptr});
     void initSwapchainResources();  // views, framebuffers
     void initPipeline();            // renderPass + pipeline + layout
     void initCommands();            // command pool
     void initSync();                // fence/semaphore
+    void recreateSwapchain(GLFWwindow* window);
+    void destroySwapchainResources();
 };
 
 }  // namespace Solaris::Graphics::Vulkan

@@ -1,6 +1,7 @@
 #include "Application.hpp"
 
 #include <spdlog/fmt/bundled/format.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
@@ -13,7 +14,13 @@
 #include <cstdint>
 #include <stdexcept>
 
+static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+    auto app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+    app->mFramebufferResized = true;
+}
+
 auto Application::Run() -> void {
+    initLogger();
     initWindow();
     initVulkan();
     mainLoop();
@@ -27,7 +34,21 @@ Application::~Application() {
     glfwTerminate();
 }
 
-auto Application::initWindow() -> void {
+void Application::initLogger() {
+    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    console_sink->set_pattern("[%T] [%^%l%$] %v");
+
+    auto logger = std::make_shared<spdlog::logger>("Solaris", console_sink);
+    spdlog::set_default_logger(logger);
+
+#if defined(NDEBUG)
+    spdlog::set_level(spdlog::level::warn);
+#else
+    spdlog::set_level(spdlog::level::debug);
+#endif
+}
+
+void Application::initWindow() {
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
 
@@ -42,9 +63,11 @@ auto Application::initWindow() -> void {
     if (pWindow == nullptr) {
         throw std::runtime_error("Failed to create window");
     }
+    glfwSetWindowUserPointer(pWindow, this);
+    glfwSetFramebufferSizeCallback(pWindow, framebufferResizeCallback);
 }
 
-auto Application::initVulkan() -> void {
+void Application::initVulkan() {
     try {
         mContext.init(pWindow);
     } catch (vk::SystemError& err) {
@@ -52,7 +75,7 @@ auto Application::initVulkan() -> void {
     }
 }
 
-auto Application::mainLoop() -> void {
+void Application::mainLoop() {
     while (glfwWindowShouldClose(pWindow) == GLFW_FALSE) {
         glfwPollEvents();
         drawFrame();
@@ -61,11 +84,11 @@ auto Application::mainLoop() -> void {
     mContext.device.waitIdle();
 }
 
-auto Application::recordCommandBuffer(uint32_t imageIndex) -> void {
+void Application::recordCommandBuffer(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) {
     vk::CommandBufferBeginInfo beginInfo{};
     beginInfo.setPInheritanceInfo(nullptr);
 
-    mContext.commandBuffer.begin(beginInfo);
+    commandBuffer.begin(beginInfo);
 
     vk::RenderPassBeginInfo renderPassInfo{};
     renderPassInfo.setRenderPass(mContext.renderPass);
@@ -78,8 +101,8 @@ auto Application::recordCommandBuffer(uint32_t imageIndex) -> void {
     renderPassInfo.setClearValueCount(1);
     renderPassInfo.setPClearValues(&clearColor);
 
-    mContext.commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-    mContext.commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mContext.pipeline);
+    commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mContext.pipeline);
 
     vk::Viewport viewport{};
     viewport.setX(0.0f);
@@ -89,50 +112,51 @@ auto Application::recordCommandBuffer(uint32_t imageIndex) -> void {
     viewport.setMinDepth(0.0f);
     viewport.setMaxDepth(1.0f);
 
-    mContext.commandBuffer.setViewport(0, {viewport});
+    commandBuffer.setViewport(0, {viewport});
 
     vk::Rect2D scissor{};
     scissor.setOffset({0, 0});
     scissor.setExtent(mContext.swapchainExtent);
 
-    mContext.commandBuffer.setScissor(0, {scissor});
-    mContext.commandBuffer.draw(3, 1, 0, 0);
+    commandBuffer.setScissor(0, {scissor});
+    commandBuffer.draw(3, 1, 0, 0);
 
-    mContext.commandBuffer.endRenderPass();
-    mContext.commandBuffer.end();
+    commandBuffer.endRenderPass();
+    commandBuffer.end();
 }
 
-auto Application::drawFrame() -> void {
-    if (auto result = mContext.device.waitForFences({mContext.inFlightFence}, vk::True, UINT64_MAX);
+void Application::drawFrame() {
+    if (auto result =
+            mContext.device.waitForFences({mContext.frames[mContext.currentFrame].inFlightFence}, vk::True, UINT64_MAX);
         result != vk::Result::eSuccess) {
         throw std::runtime_error(std::format("{}", vk::to_string(result)));
     }
-    mContext.device.resetFences({mContext.inFlightFence});
+    mContext.device.resetFences({mContext.frames[mContext.currentFrame].inFlightFence});
 
     vk::AcquireNextImageInfoKHR acquireInfo{};
     acquireInfo.setSwapchain(mContext.swapchain);
-    acquireInfo.setSemaphore(mContext.imageAvailableSemaphore);
+    acquireInfo.setSemaphore(mContext.frames[mContext.currentFrame].imageAvailableSemaphore);
     acquireInfo.setDeviceMask(1);
     acquireInfo.setTimeout(UINT64_MAX);
 
     auto result = mContext.device.acquireNextImage2KHR(acquireInfo);
-    mContext.commandBuffer.reset();
-    recordCommandBuffer(result.second);
+    mContext.frames[mContext.currentFrame].commandBuffer.reset();
+    recordCommandBuffer(mContext.frames[mContext.currentFrame].commandBuffer, result.second);
 
     vk::SubmitInfo submitInfo{};
-    vk::Semaphore waitSemaphores[] = {mContext.imageAvailableSemaphore};
+    vk::Semaphore waitSemaphores[] = {mContext.frames[mContext.currentFrame].imageAvailableSemaphore};
     vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
     submitInfo.setWaitSemaphoreCount(1);
     submitInfo.setPWaitSemaphores(waitSemaphores);
     submitInfo.setPWaitDstStageMask(waitStages);
     submitInfo.setCommandBufferCount(1);
-    submitInfo.setPCommandBuffers(&*(mContext.commandBuffer));
+    submitInfo.setPCommandBuffers(&*mContext.frames[mContext.currentFrame].commandBuffer);
 
-    vk::Semaphore signalSemaphores[] = {mContext.renderFinishedSemaphore};
+    vk::Semaphore signalSemaphores[] = {mContext.frames[mContext.currentFrame].renderFinishedSemaphore};
     submitInfo.setSignalSemaphoreCount(1);
     submitInfo.setPSignalSemaphores(signalSemaphores);
 
-    mContext.graphicsQueue.submit({submitInfo}, mContext.inFlightFence);
+    mContext.graphicsQueue.submit({submitInfo}, mContext.frames[mContext.currentFrame].inFlightFence);
 
     vk::PresentInfoKHR presentInfo{};
     presentInfo.setWaitSemaphoreCount(1);
@@ -144,7 +168,18 @@ auto Application::drawFrame() -> void {
     presentInfo.setPImageIndices(&result.second);
     presentInfo.setPResults(nullptr);
 
-    if (auto result = mContext.presentQueue.presentKHR(presentInfo); result != vk::Result::eSuccess) {
-        throw std::runtime_error(std::format("{}", vk::to_string(result)));
+    if (auto result = mContext.presentQueue.presentKHR(presentInfo);
+        result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || mFramebufferResized) {
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(pWindow, &width, &height);
+        while (width == 0 || height == 0) {
+            glfwGetFramebufferSize(pWindow, &width, &height);
+            glfwWaitEvents();
+        }
+
+        mContext.recreateSwapchain(pWindow);
+        mFramebufferResized = false;
     }
+
+    mContext.currentFrame = (mContext.currentFrame + 1) % mContext.MAX_FRAMES_IN_FLIGHT;
 }

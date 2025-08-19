@@ -5,12 +5,6 @@
 #include <stdexcept>
 
 auto main(int argc, char** argv) -> int {
-#ifndef NDEBUG
-    spdlog::set_level(spdlog::level::debug);
-#else
-    spdlog::set_level(spdlog::level::info);
-#endif
-
     try {
         Application app;
         app.Run();
@@ -18,6 +12,5 @@ auto main(int argc, char** argv) -> int {
     } catch (std::runtime_error& err) {
         spdlog::error("{}", err.what());
     }
-
     return EXIT_SUCCESS;
 }
