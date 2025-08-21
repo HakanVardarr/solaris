@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Vulkan 1.4 REQUIRED)
 find_package(glfw3 3.4 REQUIRED)
 find_package(spdlog 1.15 REQUIRED)
+find_package(glm REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(VulkanMemoryAllocator-Hpp CONFIG REQUIRED)
 
@@ -37,6 +38,7 @@ target_link_libraries(solaris
         Vulkan::Vulkan
         GPUOpen::VulkanMemoryAllocator
         VulkanMemoryAllocator-Hpp::VulkanMemoryAllocator-Hpp
+        glm::glm
 )
 
 target_compile_definitions(solaris PRIVATE
