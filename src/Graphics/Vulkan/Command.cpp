@@ -6,6 +6,7 @@
 namespace Solaris::Graphics::Vulkan {
 
 void Context::initCommands() {
+    frames.resize(swapchainImages.size());
     // Command Pool
     vk::CommandPoolCreateInfo c{vk::CommandPoolCreateFlagBits::eResetCommandBuffer, 0};
     commandPool = {device, c};
@@ -14,10 +15,10 @@ void Context::initCommands() {
     vk::CommandBufferAllocateInfo ci{};
     ci.setCommandPool(commandPool);
     ci.setLevel(vk::CommandBufferLevel::ePrimary);
-    ci.setCommandBufferCount(MAX_FRAMES_IN_FLIGHT);
+    ci.setCommandBufferCount(swapchainImages.size());
 
     auto buffers = device.allocateCommandBuffers(ci);
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (size_t i = 0; i < swapchainImages.size(); i++) {
         frames[i].commandBuffer = std::move(buffers[i]);
     }
 

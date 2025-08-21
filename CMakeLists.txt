@@ -4,19 +4,20 @@ project(solaris VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Vulkan REQUIRED)
-find_package(glfw3 REQUIRED)
-find_package(spdlog REQUIRED)
+find_package(Vulkan 1.4 REQUIRED)
+find_package(glfw3 3.4 REQUIRED)
+find_package(spdlog 1.15 REQUIRED)
+find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+find_package(VulkanMemoryAllocator-Hpp CONFIG REQUIRED)
 
 find_program(GLSLC glslc
     HINTS ENV VULKAN_SDK
     PATH_SUFFIXES bin
 )
 if(NOT GLSLC)
-    message(FATAL_ERROR "glslc bulunamadı. Vulkan SDK kurulu mu? PATH veya VULKAN_SDK/bin içinde olmalı.")
+    message(FATAL_ERROR "failed to find glslc.")
 endif()
 
-# --- Sources ---
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/*.cpp
     ${CMAKE_SOURCE_DIR}/main.cpp
@@ -34,6 +35,8 @@ target_link_libraries(solaris
         glfw
         spdlog::spdlog
         Vulkan::Vulkan
+        GPUOpen::VulkanMemoryAllocator
+        VulkanMemoryAllocator-Hpp::VulkanMemoryAllocator-Hpp
 )
 
 target_compile_definitions(solaris PRIVATE
@@ -74,9 +77,7 @@ add_custom_target(Shaders ALL
     DEPENDS ${SHADER_SPV_BINARIES}
 )
 
-
 add_dependencies(solaris Shaders)
-
 
 add_custom_command(TARGET solaris POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:solaris>/shaders

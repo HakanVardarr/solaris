@@ -140,8 +140,10 @@ void Application::drawFrame() {
     acquireInfo.setTimeout(UINT64_MAX);
 
     auto result = mContext.device.acquireNextImage2KHR(acquireInfo);
+    uint32_t imageIndex = result.second;
+
     mContext.frames[mContext.currentFrame].commandBuffer.reset();
-    recordCommandBuffer(mContext.frames[mContext.currentFrame].commandBuffer, result.second);
+    recordCommandBuffer(mContext.frames[mContext.currentFrame].commandBuffer, imageIndex);
 
     vk::SubmitInfo submitInfo{};
     vk::Semaphore waitSemaphores[] = {mContext.frames[mContext.currentFrame].imageAvailableSemaphore};
@@ -165,7 +167,7 @@ void Application::drawFrame() {
     vk::SwapchainKHR swapChains[] = {mContext.swapchain};
     presentInfo.setSwapchainCount(1);
     presentInfo.setPSwapchains(swapChains);
-    presentInfo.setPImageIndices(&result.second);
+    presentInfo.setPImageIndices(&imageIndex);
     presentInfo.setPResults(nullptr);
 
     if (auto result = mContext.presentQueue.presentKHR(presentInfo);
@@ -181,5 +183,5 @@ void Application::drawFrame() {
         mFramebufferResized = false;
     }
 
-    mContext.currentFrame = (mContext.currentFrame + 1) % mContext.MAX_FRAMES_IN_FLIGHT;
+    mContext.currentFrame = (mContext.currentFrame + 1) % mContext.frames.size();
 }

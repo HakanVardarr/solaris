@@ -5,6 +5,8 @@
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
+#include <vk_mem_alloc.hpp>
+
 namespace Solaris::Graphics::Vulkan {
 
 struct Context {
@@ -17,6 +19,7 @@ struct Context {
     vk::raii::Device device{nullptr};
     vk::Queue graphicsQueue{nullptr};
     vk::Queue presentQueue{nullptr};
+    vma::Allocator allocator{nullptr};
 
     // Swapchain + Swapchain resources
     vk::raii::SwapchainKHR swapchain{nullptr};
@@ -34,9 +37,8 @@ struct Context {
     // Command Pool
     vk::raii::CommandPool commandPool{nullptr};
 
-    const static int MAX_FRAMES_IN_FLIGHT = 2;
     uint32_t currentFrame = 0;
-    Frame frames[MAX_FRAMES_IN_FLIGHT];
+    std::vector<Frame> frames;
 
 #if defined(NDEBUG)
     bool validationEnabled = false;

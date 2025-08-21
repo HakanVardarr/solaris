@@ -3,12 +3,19 @@
 #include "Graphics/Vulkan/Swapchain.hpp"
 
 #include <GLFW/glfw3.h>
+
 #include <spdlog/spdlog.h>
+
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_structs.hpp>
+
+#include <vk_mem_alloc.hpp>
+#include <vk_mem_alloc_handles.hpp>
+#include <vk_mem_alloc_structs.hpp>
 
 #include <map>
 #include <set>
@@ -174,7 +181,7 @@ void Context::initCore(GLFWwindow* window) {
         dmi.setMessageType(vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
                            vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
                            vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral);
-        dmi.setPfnUserCallback(reinterpret_cast<PFN_vkDebugUtilsMessengerCallbackEXT>(debugUtilsMessengerCallback));
+        dmi.pfnUserCallback = reinterpret_cast<vk::PFN_DebugUtilsMessengerCallbackEXT>(debugUtilsMessengerCallback);
         debugMessenger = instance.createDebugUtilsMessengerEXT(dmi);
     }
 
@@ -239,6 +246,14 @@ void Context::initCore(GLFWwindow* window) {
     device = {physicalDevice, di};
     graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);
     presentQueue = device.getQueue(indices.presentFamily.value(), 0);
+
+    // Vulkan Memory Allocator
+    vma::AllocatorCreateInfo aci{};
+    aci.setVulkanApiVersion(physicalDevice.getProperties().apiVersion);
+    aci.setPhysicalDevice(*physicalDevice);
+    aci.setDevice(*device);
+    aci.setInstance(*instance);
+    allocator = vma::createAllocator(aci);
 }
 
 void Context::recreateSwapchain(GLFWwindow* window) {
