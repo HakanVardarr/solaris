@@ -11,6 +11,8 @@ void Context::initCommands() {
     vk::CommandPoolCreateInfo c{vk::CommandPoolCreateFlagBits::eResetCommandBuffer, 0};
     commandPool = {device, c};
 
+    initVertexBuffer();
+
     // Command Buffer
     vk::CommandBufferAllocateInfo ci{};
     ci.setCommandPool(commandPool);

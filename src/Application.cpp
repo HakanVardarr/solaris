@@ -1,4 +1,5 @@
 #include "Application.hpp"
+#include "Graphics/Vulkan/Vertex.hpp"
 
 #include <spdlog/fmt/bundled/format.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -13,6 +14,7 @@
 
 #include <cstdint>
 #include <stdexcept>
+#include "Graphics/Vulkan/Context.hpp"
 
 static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
     auto app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
@@ -104,6 +106,10 @@ void Application::recordCommandBuffer(const vk::raii::CommandBuffer& commandBuff
     commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mContext.pipeline);
 
+    vk::Buffer vertexBuffers[] = {mContext.vertexBuffer.getBuffer()};
+    vk::DeviceSize offsets[] = {0};
+    commandBuffer.bindVertexBuffers(0, vertexBuffers, offsets);
+
     vk::Viewport viewport{};
     viewport.setX(0.0f);
     viewport.setY(0.0f);
@@ -119,7 +125,7 @@ void Application::recordCommandBuffer(const vk::raii::CommandBuffer& commandBuff
     scissor.setExtent(mContext.swapchainExtent);
 
     commandBuffer.setScissor(0, {scissor});
-    commandBuffer.draw(3, 1, 0, 0);
+    commandBuffer.draw(static_cast<uint32_t>(Solaris::Graphics::Vulkan::vertices.size()), 1, 0, 0);
 
     commandBuffer.endRenderPass();
     commandBuffer.end();
