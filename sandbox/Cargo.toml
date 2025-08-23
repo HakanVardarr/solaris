@@ -1,0 +1,8 @@
+[package]
+name = "sandbox"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+solaris-core = { path = "../solaris-core" }
+solaris-graphics = { path = "../solaris-graphics" }
