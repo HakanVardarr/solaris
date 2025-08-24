@@ -1,0 +1,3 @@
+[workspace]
+members = ["sandbox", "solaris-core", "solaris-graphics"]
+resolver = "3"
