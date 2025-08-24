@@ -8,4 +8,5 @@ anyhow = "1.0.99"
 ash = { version = "0.38.0" }
 ash-window = { version = "0.13.0" }
 once_cell = "1.21.3"
+thiserror = "2.0.16"
 winit = "0.30.12"
