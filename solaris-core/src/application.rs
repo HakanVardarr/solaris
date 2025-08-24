@@ -36,7 +36,7 @@ impl<T: AppLogic> Application<T> {
     }
 
     fn init_vulkan(&mut self) {
-        self.context = Some(Context::new(self.app_name))
+        self.context = Some(Context::new(self.app_name, self.window.as_ref().unwrap()))
     }
 }
 
