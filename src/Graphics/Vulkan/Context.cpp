@@ -128,16 +128,12 @@ const std::vector<const char*> deviceExtensions = {vk::KHRSwapchainExtensionName
 void Context::init(GLFWwindow* window) {
     // Instance + Devices
     initCore(window);
-    // Swapchain
+    // Swapchain + Render Pass
     initSwapchain(window);
-    // Render Pass + Pipeline
-    initPipeline();
     // Views + Framebuffers
     initSwapchainResources();
-    // Command Pool + Command Buffer
-    initCommands();
-    // Sync
-    initSync();
+    // Command Pool + Command Buffer + Frames
+    initCommands(swapchainViews.size());
 }
 
 void Context::initCore(GLFWwindow* window) {
@@ -254,19 +250,6 @@ void Context::initCore(GLFWwindow* window) {
     aci.setDevice(*device);
     aci.setInstance(*instance);
     allocator = vma::createAllocator(aci);
-}
-
-void Context::recreateSwapchain(GLFWwindow* window) {
-    device.waitIdle();
-    vk::raii::SwapchainKHR oldSwap = std::move(swapchain);
-    destroySwapchainResources();
-    initSwapchain(window, oldSwap);
-    initSwapchainResources();
-}
-
-void Context::destroySwapchainResources() {
-    swapchainFramebuffers.clear();
-    swapchainViews.clear();
 }
 
 }  // namespace Solaris::Graphics::Vulkan

@@ -98,6 +98,44 @@ void Context::initSwapchain(GLFWwindow* window, const vk::raii::SwapchainKHR& ol
 
     swapchainFormat = format.format;
     swapchainExtent = extent;
+
+    // Render Pass
+    vk::AttachmentDescription colorAttachment{};
+    colorAttachment.format = swapchainFormat;
+    colorAttachment.samples = vk::SampleCountFlagBits::e1;
+    colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+    colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+    colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+    colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eStore;
+    colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+    colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+
+    vk::AttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+    vk::SubpassDescription subpass{};
+    subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    vk::SubpassDependency dependency{};
+    dependency.setSrcSubpass(vk::SubpassExternal);
+    dependency.setDstSubpass(0);
+    dependency.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+    dependency.setSrcAccessMask(vk::AccessFlagBits::eNone);
+    dependency.setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+    dependency.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
+
+    vk::RenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.setDependencyCount(1);
+    renderPassInfo.setPDependencies(&dependency);
+
+    renderPass = {device, renderPassInfo};
 }
 
 void Context::initSwapchainResources() {
@@ -133,6 +171,19 @@ void Context::initSwapchainResources() {
 
         swapchainFramebuffers.emplace_back(device, frambufferInfo);
     }
+}
+
+void Context::recreateSwapchain(GLFWwindow* window) {
+    device.waitIdle();
+    vk::raii::SwapchainKHR oldSwap = std::move(swapchain);
+    destroySwapchainResources();
+    initSwapchain(window, oldSwap);
+    initSwapchainResources();
+}
+
+void Context::destroySwapchainResources() {
+    swapchainFramebuffers.clear();
+    swapchainViews.clear();
 }
 
 }  // namespace Solaris::Graphics::Vulkan

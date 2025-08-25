@@ -1,7 +1,6 @@
 #pragma once
 #include "Graphics/Vulkan/Allocator.hpp"
 #include "Graphics/Vulkan/Frame.hpp"
-#include "Graphics/Vulkan/VmaBuffer.hpp"
 
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
@@ -31,19 +30,14 @@ struct Context {
     std::vector<vk::raii::ImageView> swapchainViews{};
     std::vector<vk::raii::Framebuffer> swapchainFramebuffers{};
 
-    // Render pass / Pipeline
+    // Render pass
     vk::raii::RenderPass renderPass{nullptr};
-    vk::raii::PipelineLayout pipelineLayout{nullptr};
-    vk::raii::Pipeline pipeline{nullptr};
 
     // Command Pool
     vk::raii::CommandPool commandPool{nullptr};
 
-    VmaBuffer vertexBuffer;
-    VmaBuffer indexBuffer;
-
-    uint32_t currentFrame = 0;
-    std::vector<Frame> frames;
+    // Frames
+    Frames frames;
 
 #if defined(NDEBUG)
     bool validationEnabled = false;
@@ -54,15 +48,10 @@ struct Context {
     void init(GLFWwindow* window);
     void initCore(GLFWwindow* window);
     void initSwapchain(GLFWwindow* window, const vk::raii::SwapchainKHR& oldSwapchain = {nullptr});
-    void initSwapchainResources();  // views, framebuffers
-    void initPipeline();            // renderPass + pipeline + layout
-    void initVertexBuffer();        // Vertex Buffer;
-    void initIndexBuffer();         // Vertex Buffer;
-    void initCommands();            // command pool
-    void initSync();                // fence/semaphore
+    void initSwapchainResources();         // views, framebuffers
+    void initCommands(size_t frameCount);  // command pool
     void recreateSwapchain(GLFWwindow* window);
     void destroySwapchainResources();
-    void copyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size);
 };
 
 }  // namespace Solaris::Graphics::Vulkan
