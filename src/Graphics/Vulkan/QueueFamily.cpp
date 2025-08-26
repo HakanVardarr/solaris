@@ -1,4 +1,4 @@
-#include "Graphics/Vulkan/QueueFamily.hpp"
+#include "Solaris/Graphics/Vulkan/QueueFamily.hpp"
 #include <vulkan/vulkan_handles.hpp>
 
 namespace Solaris::Graphics::Vulkan {

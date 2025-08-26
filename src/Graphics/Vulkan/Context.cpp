@@ -1,6 +1,6 @@
-#include "Graphics/Vulkan/Context.hpp"
-#include "Graphics/Vulkan/QueueFamily.hpp"
-#include "Graphics/Vulkan/Swapchain.hpp"
+#include "Solaris/Graphics/Vulkan/Context.hpp"
+#include "Solaris/Graphics/Vulkan/QueueFamily.hpp"
+#include "Solaris/Graphics/Vulkan/Swapchain.hpp"
 
 #include <GLFW/glfw3.h>
 

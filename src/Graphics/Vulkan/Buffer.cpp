@@ -1,4 +1,4 @@
-#include "Graphics/Vulkan/Buffer.hpp"
+#include "Solaris/Graphics/Vulkan/Buffer.hpp"
 
 #include <cstdint>
 #include <vulkan/vulkan.hpp>

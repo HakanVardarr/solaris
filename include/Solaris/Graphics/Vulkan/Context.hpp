@@ -1,6 +1,6 @@
 #pragma once
-#include "Graphics/Vulkan/Allocator.hpp"
-#include "Graphics/Vulkan/Frame.hpp"
+#include "Solaris/Graphics/Vulkan/Allocator.hpp"
+#include "Solaris/Graphics/Vulkan/Frame.hpp"
 
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>

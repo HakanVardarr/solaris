@@ -1,5 +1,4 @@
-#include "Graphics/Vulkan/Context.hpp"
-#include "Graphics/Vulkan/Vertex.hpp"
+#include "Solaris/Graphics/Vulkan/Context.hpp"
 
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan_enums.hpp>

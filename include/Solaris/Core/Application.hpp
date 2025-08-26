@@ -1,5 +1,5 @@
 #pragma once
-#include "Graphics/Vulkan/Context.hpp"
+#include "Solaris/Graphics/Vulkan/Context.hpp"
 
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan_raii.hpp>

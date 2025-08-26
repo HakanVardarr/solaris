@@ -1,5 +1,5 @@
-#include "Core/Application.hpp"
-#include "Graphics/Vulkan/Context.hpp"
+#include "Solaris/Core/Application.hpp"
+#include "Solaris/Graphics/Vulkan/Context.hpp"
 
 #include <spdlog/fmt/bundled/format.h>
 #include <spdlog/sinks/stdout_color_sinks.h>

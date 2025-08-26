@@ -1,6 +1,6 @@
-#include "Graphics/Vulkan/Swapchain.hpp"
-#include "Graphics/Vulkan/Context.hpp"
-#include "Graphics/Vulkan/QueueFamily.hpp"
+#include "Solaris/Graphics/Vulkan/Swapchain.hpp"
+#include "Solaris/Graphics/Vulkan/Context.hpp"
+#include "Solaris/Graphics/Vulkan/QueueFamily.hpp"
 
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_enums.hpp>

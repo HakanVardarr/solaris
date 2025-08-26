@@ -1,4 +1,4 @@
-#include "Graphics/Vulkan/Shader.hpp"
+#include "Solaris/Graphics/Vulkan/Shader.hpp"
 
 #include <fstream>
 

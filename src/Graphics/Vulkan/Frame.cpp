@@ -1,4 +1,4 @@
-#include "Graphics/Vulkan/Frame.hpp"
+#include "Solaris/Graphics/Vulkan/Frame.hpp"
 #include <vulkan/vulkan_raii.hpp>
 
 namespace Solaris::Graphics::Vulkan {
