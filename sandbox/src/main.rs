@@ -10,6 +10,6 @@ impl AppLogic for Game {
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
-    let mut application = Application::new(Game, "sandbox");
+    let mut application = Application::new(Game, "Sandbox");
     event_loop.run_app(&mut application).unwrap();
 }

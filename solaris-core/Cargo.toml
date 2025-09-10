@@ -7,3 +7,5 @@ edition = "2024"
 [dependencies]
 winit = "0.30.12"
 solaris-graphics = { path = "../solaris-graphics" }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

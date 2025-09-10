@@ -42,6 +42,10 @@ impl<T: AppLogic> Application<T> {
 
 impl<T: AppLogic> ApplicationHandler for Application<T> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .init();
+
         self.init_window(event_loop);
         self.init_vulkan();
     }

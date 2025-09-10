@@ -1,20 +1,29 @@
 use super::error::ContextError;
-use ash::{vk, Entry};
+use ash::{ext::debug_utils, vk, Entry};
 use once_cell::sync::Lazy;
 use std::ffi::{c_char, CStr, CString};
+use tracing::{debug, error, info, warn};
 use winit::{raw_window_handle::HasDisplayHandle, window::Window};
 
 static VALIDATION_LAYERS: Lazy<Vec<CString>> =
     Lazy::new(|| vec![CString::new("VK_LAYER_KHRONOS_validation").unwrap()]);
 
+struct DebugMessenger {
+    messenger: vk::DebugUtilsMessengerEXT,
+    loader: debug_utils::Instance,
+}
+
 pub struct Context {
     _entry: Entry,
     instance: ash::Instance,
+    debug_messenger: Option<DebugMessenger>,
 }
 
 impl Context {
     pub fn new(app_name: &str, window: &Window) -> anyhow::Result<Self> {
+        info!("Creating Vulkan context for app: {}", app_name);
         let entry = unsafe { Entry::load()? };
+        info!("Loaded Vulkan entry");
 
         let app_name = CString::new(app_name)?;
         let engine_name = CString::new("solaris")?;
@@ -35,6 +44,8 @@ impl Context {
         let layer_names: Vec<*const i8> = Vec::new();
 
         Context::check_validation_layer_support(&entry, &layer_names)?;
+        info!("Validation layers checked and supported");
+
         #[allow(unused_mut)]
         let mut instance_create_info = vk::InstanceCreateInfo {
             p_application_info: &app_info,
@@ -55,10 +66,39 @@ impl Context {
         }
 
         let instance = unsafe { entry.create_instance(&instance_create_info, None)? };
+        info!("Created Vulkan instance");
+
+        #[allow(unused_assignments)]
+        let mut debug_messenger: Option<DebugMessenger> = None;
+        #[cfg(debug_assertions)]
+        {
+            use ash::ext::debug_utils;
+
+            let debug_messenger_create_info = vk::DebugUtilsMessengerCreateInfoEXT {
+                message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+                    | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+                    | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE,
+                message_type: vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
+                    | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
+                    | vk::DebugUtilsMessageTypeFlagsEXT::GENERAL,
+                pfn_user_callback: Some(debug_callback),
+                ..Default::default()
+            };
+
+            let debug_utils_loader = debug_utils::Instance::new(&entry, &instance);
+            debug_messenger = Some(DebugMessenger {
+                messenger: unsafe {
+                    debug_utils_loader
+                        .create_debug_utils_messenger(&debug_messenger_create_info, None)
+                }?,
+                loader: debug_utils_loader,
+            });
+        }
 
         Ok(Self {
             _entry: entry,
             instance,
+            debug_messenger,
         })
     }
 
@@ -105,6 +145,59 @@ impl Context {
 
 impl Drop for Context {
     fn drop(&mut self) {
-        unsafe { self.instance.destroy_instance(None) };
+        unsafe {
+            if let Some(debug_messenger) = &self.debug_messenger {
+                debug_messenger
+                    .loader
+                    .destroy_debug_utils_messenger(debug_messenger.messenger, None);
+            }
+            self.instance.destroy_instance(None);
+        };
     }
+}
+
+unsafe extern "system" fn debug_callback(
+    message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
+    message_type: vk::DebugUtilsMessageTypeFlagsEXT,
+    callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT<'_>,
+    _user_data: *mut core::ffi::c_void,
+) -> vk::Bool32 {
+    let callback_data = *callback_data;
+
+    let message_id = callback_data.message_id_number;
+    let message_name = if !callback_data.p_message_id_name.is_null() {
+        CStr::from_ptr(callback_data.p_message_id_name).to_string_lossy()
+    } else {
+        std::borrow::Cow::Borrowed("NoName")
+    };
+
+    let message = if !callback_data.p_message.is_null() {
+        CStr::from_ptr(callback_data.p_message).to_string_lossy()
+    } else {
+        std::borrow::Cow::Borrowed("")
+    };
+
+    let mut types = Vec::new();
+    if message_type.contains(vk::DebugUtilsMessageTypeFlagsEXT::GENERAL) {
+        types.push("General");
+    }
+    if message_type.contains(vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION) {
+        types.push("Validation");
+    }
+    if message_type.contains(vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE) {
+        types.push("Performance");
+    }
+    let type_str = types.join("|");
+
+    if message_severity.contains(vk::DebugUtilsMessageSeverityFlagsEXT::ERROR) {
+        error!(target: "vulkan", "[{}] {} - {}: {}", type_str, message_id, message_name, message);
+    } else if message_severity.contains(vk::DebugUtilsMessageSeverityFlagsEXT::WARNING) {
+        warn!(target: "vulkan", "[{}] {} - {}: {}", type_str, message_id, message_name, message);
+    } else if message_severity.contains(vk::DebugUtilsMessageSeverityFlagsEXT::INFO) {
+        info!(target: "vulkan", "[{}] {} - {}: {}", type_str, message_id, message_name, message);
+    } else if message_severity.contains(vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE) {
+        debug!(target: "vulkan", "[{}] {} - {}: {}", type_str, message_id, message_name, message);
+    }
+
+    vk::FALSE
 }
