@@ -1,7 +1,8 @@
+use crate::debug_messenger::DebugMessenger;
+use crate::device::Device;
+use crate::error::ContextError;
 use crate::surface::Surface;
 
-use super::debug_messenger::DebugMessenger;
-use super::error::ContextError;
 use ash::{vk, Entry};
 use once_cell::sync::Lazy;
 use std::ffi::{c_char, CStr, CString};
@@ -14,8 +15,13 @@ static VALIDATION_LAYERS: Lazy<Vec<CString>> =
 pub struct Context {
     _entry: Entry,
     instance: ash::Instance,
+
+    _app_name: CString,
+    _engine_name: CString,
+
     debug_messenger: Option<DebugMessenger>,
     surface: Option<Surface>,
+    device: Option<Device>,
 }
 
 impl Context {
@@ -23,7 +29,11 @@ impl Context {
         info!("Creating Vulkan context for app: {}", app_name);
 
         let entry = Self::create_entry()?;
-        let app_info = Self::create_app_info(app_name);
+
+        let app_name_cstr = CString::new(app_name)?;
+        let engine_name_cstr = CString::new("solaris")?;
+
+        let app_info = Self::create_app_info(&app_name_cstr, &engine_name_cstr);
         let extensions = Self::get_required_extensions(window);
 
         #[cfg(debug_assertions)]
@@ -36,22 +46,17 @@ impl Context {
         let debug_messenger = Self::create_debug_messenger(&entry, &instance)?;
         let surface = Some(Self::create_surface(window, &entry, &instance)?);
 
-        unsafe {
-            let devices = instance.enumerate_physical_devices()?;
-            if devices.is_empty() {
-                return Err(anyhow::Error::msg("Failed to find GPUs on device."));
-            }
-
-            for device in devices {
-                let properties = instance.get_physical_device_properties(device);
-            }
-        };
+        let devices = unsafe { instance.enumerate_physical_devices()? };
+        let device = Some(Device::choose_suitable_device(&instance, devices)?);
 
         Ok(Self {
             _entry: entry,
             instance,
+            _app_name: app_name_cstr,
+            _engine_name: engine_name_cstr,
             debug_messenger,
             surface,
+            device,
         })
     }
 
@@ -61,11 +66,10 @@ impl Context {
         Ok(entry)
     }
 
-    #[allow(mismatched_lifetime_syntaxes)]
-    fn create_app_info(app_name: &str) -> vk::ApplicationInfo {
-        let app_name = CString::new(app_name).unwrap();
-        let engine_name = CString::new("solaris").unwrap();
-
+    fn create_app_info<'a>(
+        app_name: &'a CString,
+        engine_name: &'a CString,
+    ) -> vk::ApplicationInfo<'a> {
         vk::ApplicationInfo {
             p_application_name: app_name.as_ptr(),
             application_version: vk::make_api_version(0, 1, 0, 0),
@@ -158,8 +162,9 @@ impl Context {
 impl Drop for Context {
     fn drop(&mut self) {
         unsafe {
-            let _ = self.debug_messenger.take();
+            let _ = self.device.take();
             let _ = self.surface.take();
+            let _ = self.debug_messenger.take();
             self.instance.destroy_instance(None);
         };
     }
